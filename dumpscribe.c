@@ -4,13 +4,16 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <assert.h>
+#include <arpa/inet.h>
 #include <glib.h>
 #include <libusb.h>
 #include <archive.h>
 #include <archive_entry.h>
-#include <assert.h>
-#include <arpa/inet.h>
-#include <stdio.h>
+#include <libxml/tree.h>
+#include <libxml/parser.h>
+#include <libxml/xpath.h>
+#include <libxml/xpathInternals.h>
 
 #define LS_VENDOR_ID 0x1cfb //LiveScribe Vendor ID
 inline int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } //LiveScribe Pulse(TM) Smartpen
@@ -329,17 +332,6 @@ uint16_t identify_smartpen(struct libusb_device_handle* dev) {
   return desc.idProduct;
 }
 
-
-// Get the list of written notes created since start_time
-const char* get_written_notes_list(obex_t* handle, long long int start_time) {
-    char name[256];
-    uint32_t len;
-
-    snprintf(name, sizeof(name), "changelist?start_time=%lld", start_time);
-    return get_named_object(handle, name, &len);
-}
-
-
 // helper functionfor the extact function
 int extract_copy_data(struct archive *ar, struct archive *aw) {
   int r;
@@ -393,8 +385,10 @@ int extract(const char* filename, const char* outdir) {
   archive_write_disk_set_options(out, ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_SECURE_NODOTDOT);
 
   while(archive_read_next_header(in, &entry) == ARCHIVE_OK) {
+
     // TODO skip files that we don't want
-    // and change output directory format
+    // and change output directory format to something human readable
+    // e.g. notebook_name/page_number/date_and_time/
 
     r = archive_write_header(out, entry);
     if(r != ARCHIVE_OK) {
@@ -489,7 +483,7 @@ int get_audio(obex_t *handle, long long int start_time, const char* outfile) {
   return get_archive(handle, name, outfile);
 }
 
-int get_written_notes(obex_t *handle, const char* object_name, long long int start_time, const char* outfile) {
+int get_written_page(obex_t *handle, const char* object_name, long long int start_time, const char* outfile) {
 	char name[256];
 
   snprintf(name, sizeof(name), "lspdata?name=%s&start_time=%lld", object_name, start_time);
@@ -497,12 +491,95 @@ int get_written_notes(obex_t *handle, const char* object_name, long long int sta
   return get_archive(handle, name, outfile);
 }
 
+// Get a list of written pages created since start_time
+const char* get_written_page_list(obex_t* handle, long long int start_time, uint32_t* len) {
+    char name[256];
+
+    snprintf(name, sizeof(name), "changelist?start_time=%lld", start_time);
+    return get_named_object(handle, name, len);
+}
+
+// Download all written pages
+int get_all_written_pages(obex_t* handle, long long int start_time) {
+
+  uint32_t list_len;
+  xmlDocPtr doc;
+  xmlXPathContextPtr xpathCtx; 
+  xmlXPathObjectPtr xpathObj; 
+  xmlNodeSetPtr nodes;
+  //  xmlAttrPtr attr;
+  xmlChar* val;
+  int i, size;
+
+  // This is safe since we know exactly what we're casting.
+  const xmlChar* xpathExpr = BAD_CAST "/xml/changelist/lsp";
+
+  const char* list = get_written_page_list(handle, start_time, &list_len);
+  if(!list) {
+    fprintf(stderr, "Failed to retrieve the list of written pages.\n");
+    return 1;
+  }
+
+  xmlInitParser();
+
+  doc = xmlParseMemory(list, list_len);
+  if(!doc) {
+    fprintf(stderr, "Failed to parse list of written pages.\n");
+    return 1;
+  }
+
+  xpathCtx = xmlXPathNewContext(doc);
+  if(!xpathCtx) {
+    fprintf(stderr, "Failed to create XPath context.\n");
+    xmlFreeDoc(doc);
+    return 1;    
+  }
+
+  xpathObj = xmlXPathEvalExpression(xpathExpr, xpathCtx);
+  if(!xpathObj) {
+    fprintf(stderr, "Failed to evaluate XPath expression.\n");
+    xmlXPathFreeContext(xpathCtx);
+    return 1;
+  }
+  
+  nodes = xpathObj->nodesetval;
+  size = nodes->nodeNr;
+
+  for(i = 0; i < size; ++i) {
+    if(nodes->nodeTab[i]->type != XML_ELEMENT_NODE) {
+      continue;
+    }
+    //    printf("%s\n", nodes->nodeTab[i]->name);
+    //    for(attr = nodes->nodeTab[i]->properties; attr != NULL; attr = attr->next) {
+      //    }
+    val = xmlGetProp(nodes->nodeTab[i], BAD_CAST "guid");
+    if(!val) {
+      continue;
+    }
+    printf("guid: %s\n", val);
+    get_written_page(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip");
+    xmlFree(val);
+
+    val = xmlGetProp(nodes->nodeTab[i], BAD_CAST "title");
+    printf("title: %s\n", val);
+    xmlFree(val);
+  }
+  
+  xmlXPathFreeObject(xpathObj);
+  xmlXPathFreeContext(xpathCtx);
+  xmlFreeDoc(doc);
+  xmlCleanupParser();
+  
+  return 0;
+}
+
+
 int main (void) {
 
   uint16_t usb_product_id;
   struct libusb_device_handle* dev;
   int ret;
-  const char* audio_outfile = "tmp/audio.zip";
+  const char* audio_outfile = "/tmp/dumpscribe_audio.zip";
 
   // TODO take command line argument for this
   debug_mode = 1;
@@ -528,14 +605,11 @@ int main (void) {
 
   printf("Connected to smartpen!\n");
 
-  const char* change_list = get_written_notes_list(handle, 0);
-  if(!change_list) {
-    fprintf(stderr, "Failed to get list of written notes from smartpen.\n");
+  ret = get_all_written_pages(handle, 0);
+  if(ret) {
+    fprintf(stderr, "Failed to get list of written pages from smartpen.\n");
     return 1;
   }
-
-  printf("Got change list:\n\n%s", change_list);
-
 
   ret = get_audio(handle, 0, audio_outfile);
   if(ret) {

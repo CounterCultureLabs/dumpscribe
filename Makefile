@@ -1,5 +1,5 @@
 
-LOCAL_CFLAGS=-Wall -fPIC `pkg-config --cflags glib-2.0 openobex libusb-1.0 libarchive` -g
+LOCAL_CFLAGS=-Wall -fPIC `pkg-config --cflags glib-2.0 openobex libusb-1.0 libarchive libxml-2.0` -g
 
 all: dumpscribe
 
@@ -7,7 +7,7 @@ all: dumpscribe
 	gcc -o $@ -c $^ $(CFLAGS) $(LOCAL_CFLAGS)
 
 dumpscribe: dumpscribe.o
-	gcc -o $@ $^ `pkg-config --libs glib-2.0 openobex libusb-1.0 libarchive`
+	gcc -o $@ $^ `pkg-config --libs glib-2.0 openobex libusb-1.0 libarchive libxml-2.0`
 
 clean:
 	rm *.o dumpscribe
