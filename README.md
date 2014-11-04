@@ -41,12 +41,12 @@ This work is licensed under GPLv2. For more info see the COPYING file.
 
 This work has had multiple contributors. Not all of them have identified themselves clearly.
 
-Copyright 2010 to 2011 Steven Walter (https://github.com/srwalter)
-Copyright 2010 Scott Hassan
-Copyright 2011 jhl (?)
-Copyright 2011 Nathanael Noblet (nathanael@gnat.ca)
-Copyright 2011 to 2013 Dylan M. Taylor (webmaster@dylanmtaylor.com)
-Copyright 2013 Yonathan Randolph (yonathan@gmail.com) 
-Copyright 2014 Robert Jordens (https://github.com/jordens)
-Copyright 2014 Ali Neishabouri (ali@neishabouri.net)
-Copyright 2014 Marc Juul (scribedump@juul.io)
+* Copyright 2010 to 2011 Steven Walter (https://github.com/srwalter)
+* Copyright 2010 Scott Hassan
+* Copyright 2011 jhl (?)
+* Copyright 2011 Nathanael Noblet (nathanael@gnat.ca)
+* Copyright 2011 to 2013 Dylan M. Taylor (webmaster@dylanmtaylor.com)
+* Copyright 2013 Yonathan Randolph (yonathan@gmail.com) 
+* Copyright 2014 Robert Jordens (https://github.com/jordens)
+* Copyright 2014 Ali Neishabouri (ali@neishabouri.net)
+* Copyright 2014 Marc Juul (scribedump@juul.io)
