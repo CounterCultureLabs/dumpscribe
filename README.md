@@ -1,6 +1,12 @@
 
 This is a work in progress. It does not yet work.
 
+# TODO
+
+* Output sane directory structure (with time and date)
+* Add STF to PDF conversion
+* Add command line arguments
+
 # Requirements
 
 TODO list the required packages
