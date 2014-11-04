@@ -30,8 +30,8 @@ This usage text is aspirational.
 
 This tool is based on, and contains code from, the following projects:
 
-*libsmartpen https://github.com/srwalter/libsmartpen
-*LibreScribe https://github.com/dylanmtaylor/LibreScribe
+* [libsmartpen](https://github.com/srwalter/libsmartpen)
+* [LibreScribe](https://github.com/dylanmtaylor/LibreScribe)
 
 ## License
 
