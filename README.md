@@ -1,5 +1,7 @@
 
-This is a work in progress. It does not yet work.
+Downloads all written notes and recorded audio from a LiveScribe Pulse or Echo pen.
+
+Functionality is currently limited: The raw data is downloaded and extracted, with no conversion to sane formats or association of data with time of recording/writing.
 
 # TODO
 
