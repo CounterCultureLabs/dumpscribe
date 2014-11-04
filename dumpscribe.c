@@ -3,8 +3,11 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <glib.h>
 #include <libusb.h>
+#include <archive.h>
+#include <archive_entry.h>
 #include <assert.h>
 #include <arpa/inet.h>
 #include <stdio.h>
@@ -17,7 +20,7 @@ struct obex_state {
     obex_t *handle;
     int req_done;
     char *body;
-    int body_len;
+    uint32_t body_len;
     int got_connid;
     int connid;
 };
@@ -32,6 +35,7 @@ void debug(const char* format, ... ) {
     va_end( arglist );
   }
 }
+
 
 // TODO what the hell is this?
 void swizzle_usb(short vendor, short product) {
@@ -160,7 +164,7 @@ struct libusb_device_handle *find_smartpen() {
     return NULL;
 }
 
-const char* get_named_object(obex_t *handle, const char* name, int* len) {
+const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
     printf("attempting to retrieve named object \"%s\"...\n", name);
     struct obex_state* state;
     int req_done;
@@ -228,7 +232,8 @@ static void smartpen_reset(short vendor, short product) {
 obex_t *smartpen_connect(short vendor, short product) {
   obex_t* handle;
   obex_object_t* obj;
-  int rc, num, i;
+  int num, i;
+  uint32_t rc;
   struct obex_state* state;
   obex_interface_t* obex_intf;
   obex_headerdata_t hd;
@@ -325,10 +330,179 @@ uint16_t identify_smartpen(struct libusb_device_handle* dev) {
 }
 
 
+// Get the list of written notes created since start_time
+const char* get_written_notes_list(obex_t* handle, long long int start_time) {
+    char name[256];
+    uint32_t len;
+
+    snprintf(name, sizeof(name), "changelist?start_time=%lld", start_time);
+    return get_named_object(handle, name, &len);
+}
+
+
+// helper functionfor the extact function
+int extract_copy_data(struct archive *ar, struct archive *aw) {
+  int r;
+  const void *buff;
+  size_t size;
+  off_t offset;
+
+  for(;;) {
+    r = archive_read_data_block(ar, &buff, &size, &offset);
+    if(r == ARCHIVE_EOF)
+      return ARCHIVE_OK;
+    if(r < ARCHIVE_OK)
+      return r;
+    r = archive_write_data_block(aw, buff, size, offset);
+    if(r < ARCHIVE_OK) {
+      fprintf(stderr, "%s\n", archive_error_string(aw));
+      return r;
+    }
+  }
+}
+
+int extract(const char* filename, const char* outdir) {
+  struct archive *in;
+  struct archive *out;
+  struct archive_entry *entry;
+  char oldwd[PATH_MAX];
+  char* ret;
+  int r;
+  
+  ret = getcwd(oldwd, PATH_MAX);
+  if(!ret) {
+    return 1;
+  }
+
+  in = archive_read_new();
+  archive_read_support_filter_all(in);
+  archive_read_support_format_all(in);
+  r = archive_read_open_filename(in, filename, 512);
+  if(r != ARCHIVE_OK) {
+    chdir(oldwd);
+    return 1;
+  }
+
+  r = chdir(outdir);
+  if(r) {
+    fprintf(stderr, "Could not access output directory.\n");
+    return 1;
+  }
+
+  out = archive_write_disk_new();
+  archive_write_disk_set_options(out, ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_SECURE_NODOTDOT);
+
+  while(archive_read_next_header(in, &entry) == ARCHIVE_OK) {
+    // TODO skip files that we don't want
+    // and change output directory format
+
+    r = archive_write_header(out, entry);
+    if(r != ARCHIVE_OK) {
+      chdir(oldwd);
+      return 1;
+    }
+    
+    r = extract_copy_data(in, out);
+    if(r != ARCHIVE_OK) {
+      chdir(oldwd);
+      return 1;
+    }    
+
+    r = archive_write_finish_entry(out);
+    if(r != ARCHIVE_OK) {
+      chdir(oldwd);
+      return 1;
+    }
+
+  }
+  r = archive_read_close(in);
+  if(r != ARCHIVE_OK) {
+    chdir(oldwd);
+    return 1;
+  }
+  r = archive_read_free(in);
+  if(r != ARCHIVE_OK) {
+    chdir(oldwd);
+    return 1;
+  }
+  r = archive_write_close(out);
+  if(r != ARCHIVE_OK) {
+    chdir(oldwd);
+    return 1;
+  }
+  r = archive_write_free(out);
+  if(r != ARCHIVE_OK) {
+    chdir(oldwd);
+    return 1;
+  }
+
+  chdir(oldwd);
+  return 0;
+}
+
+
+// retrieve data in zip format
+int get_archive(obex_t *handle, char* object_name, const char* outfile) {
+	uint32_t len;
+  uint32_t written;
+  const char* buf;
+  int ret;
+  FILE* out;
+  
+  out = fopen(outfile, "w");
+  if(!out) {
+    fprintf(stderr, "Failed to open file for writing: %s\n", outfile);
+    return 1;
+  }
+  
+	buf = get_named_object(handle, object_name, &len);
+  
+  written = fwrite(buf, len, 1, out);
+  if(!written) {
+    fprintf(stderr, "Data could not be written to disk. Is your disk full?\n");
+    return 1;
+  }
+  
+  fclose(out);
+  
+  ret = extract(outfile, "tmp");
+  if(ret) {
+    fprintf(stderr, "Failed to extract downloaded file.\n");
+    unlink(outfile);
+    return 1;
+  }
+
+  ret = unlink(outfile);
+  if(ret) {
+    fprintf(stderr, "Warning: Failed to delete file: %s.\n", outfile);
+  }
+  
+  return 0;
+}
+
+
+int get_audio(obex_t *handle, long long int start_time, const char* outfile) {
+	char name[256];
+
+	snprintf(name, sizeof(name), "lspdata?name=com.livescribe.paperreplay.PaperReplay&start_time=%lld&returnVersion=0.3&remoteCaller=WIN_LD_200", start_time);
+
+  return get_archive(handle, name, outfile);
+}
+
+int get_written_notes(obex_t *handle, const char* object_name, long long int start_time, const char* outfile) {
+	char name[256];
+
+  snprintf(name, sizeof(name), "lspdata?name=%s&start_time=%lld", object_name, start_time);
+
+  return get_archive(handle, name, outfile);
+}
+
 int main (void) {
 
   uint16_t usb_product_id;
   struct libusb_device_handle* dev;
+  int ret;
+  const char* audio_outfile = "tmp/audio.zip";
 
   // TODO take command line argument for this
   debug_mode = 1;
@@ -353,6 +527,23 @@ int main (void) {
   }
 
   printf("Connected to smartpen!\n");
+
+  const char* change_list = get_written_notes_list(handle, 0);
+  if(!change_list) {
+    fprintf(stderr, "Failed to get list of written notes from smartpen.\n");
+    return 1;
+  }
+
+  printf("Got change list:\n\n%s", change_list);
+
+
+  ret = get_audio(handle, 0, audio_outfile);
+  if(ret) {
+    fprintf(stderr, "Failed to download audio from smartpen.\n");
+    return 1;
+  }
+
+
 
   /*
 
