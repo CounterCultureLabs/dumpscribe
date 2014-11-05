@@ -579,6 +579,11 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
       if(strcmp(page->name, "page") != 0) {
         continue;
       }
+
+      val = xmlGetProp(page, BAD_CAST "pageaddress");
+      printf("  page address: %s\n", val);
+      xmlFree(val);
+
       val = xmlGetProp(page, BAD_CAST "page");
       printf("  page number: %s\n", val);
       xmlFree(val);
