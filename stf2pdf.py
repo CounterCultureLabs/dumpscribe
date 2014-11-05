@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import time
 import cairo
 import sys
 import parsestf
@@ -65,6 +66,8 @@ if len(sys.argv) < 3:
     print("Usage: ./stf2pdf input.stf output.pdf [background.png]")
     sys.exit(1)
 
+f = open(sys.argv[1], 'rb')
+
 size = 4963, 6278
 res = 1/10.0
 
@@ -72,21 +75,26 @@ surface = cairo.PDFSurface(sys.argv[2], *(i*res for i in size))
 
 ctx = cairo.Context(surface)
 ctx.scale(res, res)
+ctx.save()
 
 if len(sys.argv) > 3:
     paper = cairo.ImageSurface.create_from_png(open(sys.argv[3], 'rb'))
     scale = size[0]/paper.get_width()
+    ctx.scale(scale, scale)
     ctx.set_source_surface(paper, 0, 0)
 else:
     scale = 1
+    ctx.scale(scale, scale)
     ctx.set_source_rgb(255, 255, 255)
 
-f = open(sys.argv[1], 'rb')
-ctx.save()
-ctx.scale(scale, scale)
+
 ctx.paint()
 ctx.restore()
 
-# TODO add t0=<actual_time>
+# TODO figure out time
+# We need to have the time from pen info in order to parse times? Maybe?
+# info = pen.get_info()
+# t0 = ET.fromstring(info).find("peninfo/time")
+# t0 = time.time() - float(t0.get("absolute"))/1000
 Parser(f).parse(ctx, t0=None, name="LiveScribe notes")
 ctx.show_page()
