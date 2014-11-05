@@ -1,13 +1,14 @@
 
-Downloads all written notes and recorded audio from a LiveScribe Pulse or Echo pen.
+Downloads all written notes and recorded audio from a LiveScribe Pulse or Echo pen. 
 
-Functionality is currently limited: The raw data is downloaded and extracted, with no conversion to sane formats or association of data with time of recording/writing.
+Functionality is currently limited: The raw data is downloaded and extracted to tmp/, with no conversion to sane formats or association of data with time of recording/writing.
 
 # TODO
 
-* Output sane directory structure (with time and date)
-* Add STF to PDF conversion
 * Add command line arguments
+* Write convert and sanitize python script:
+** Move files into sane directory structure (with datetime and page numbers)
+** Add STF to PDF conversion
 * Get rid of warnings related to xmlChar vs. char
 
 # Requirements

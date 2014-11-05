@@ -463,6 +463,7 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile) {
   
   fclose(out);
   
+  // TODO get this dir from command line argument
   ret = extract(outfile, "tmp");
   if(ret) {
     fprintf(stderr, "Failed to extract downloaded file.\n");
@@ -511,10 +512,10 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
   xmlXPathContextPtr xpathCtx; 
   xmlXPathObjectPtr xpathObj; 
   xmlNodeSetPtr nodes;
-  xmlNodePtr page;
-  //  xmlAttrPtr attr;
   xmlChar* val;
+  FILE* pagelistfile;
   int i, size;
+  ssize_t written;
 
   // This is safe since we know exactly what we're casting.
   const xmlChar* xpathExpr = BAD_CAST "/xml/changelist/lsp";
@@ -525,7 +526,22 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
     return 1;
   }
 
-  printf("List: %s\n", list);
+  // TODO get this dir from command line argument
+  pagelistfile = fopen("tmp/written_page_list.xml", "w");
+  if(!pagelistfile) {
+    fprintf(stderr, "Failed to open written_page_list.xml for writing.\n");
+    return 1;
+  }
+
+  written = fwrite(list, list_len, 1, pagelistfile);
+  if(!written) { 
+    fprintf(stderr, "Failed to write written_page_list.xml.\n");
+    return 1;
+  }
+
+  fclose(pagelistfile);
+
+  debug("Written page list:\n%s\n", list);
 
   xmlInitParser();
 
@@ -556,42 +572,14 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
     if(nodes->nodeTab[i]->type != XML_ELEMENT_NODE) {
       continue;
     }
-    //    printf("%s\n", nodes->nodeTab[i]->name);
-    //    for(attr = nodes->nodeTab[i]->properties; attr != NULL; attr = attr->next) {
-    //    }
+
     val = xmlGetProp(nodes->nodeTab[i], BAD_CAST "guid");
     if(!val) {
       continue;
     }
-    printf("guid: %s\n", val);
+    debug("found guid: %s\n", val);
     get_written_page(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip");
     xmlFree(val);
-
-    val = xmlGetProp(nodes->nodeTab[i], BAD_CAST "title");
-    printf("title: %s\n", val);
-    xmlFree(val);
-
-    // TODO save page numbers and times for use during archive extraction
-
-    // iterate over pages to get page numbers and times 
-    for(page = nodes->nodeTab[i]->children; page != NULL; page = page->next) {
-      // skip non-page nodes (e.g. text nodes);
-      if(strcmp(page->name, "page") != 0) {
-        continue;
-      }
-
-      val = xmlGetProp(page, BAD_CAST "pageaddress");
-      printf("  page address: %s\n", val);
-      xmlFree(val);
-
-      val = xmlGetProp(page, BAD_CAST "page");
-      printf("  page number: %s\n", val);
-      xmlFree(val);
-
-      val = xmlGetProp(page, BAD_CAST "end_time");
-      printf("  time time: %s\n", val);
-      xmlFree(val);
-    }
   }
   
   xmlXPathFreeObject(xpathObj);
