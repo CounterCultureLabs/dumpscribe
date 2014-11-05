@@ -5,9 +5,9 @@ import cairo
 import sys
 import parsestf
 
-class Parser(parsestf.STFParser):
+class STF2PDF(parsestf.STFParser):
     def __init__(self, stream):
-        super(Parser, self).__init__(stream)
+        super(STF2PDF, self).__init__(stream)
         self.force = 0
         self.times = []
 
@@ -37,7 +37,7 @@ class Parser(parsestf.STFParser):
                 cairo.FONT_WEIGHT_NORMAL)
         ctx.set_font_size(8)
 
-        super(Parser, self).parse()
+        super(STF2PDF, self).parse()
 
 
         title = []
@@ -61,40 +61,50 @@ class Parser(parsestf.STFParser):
 
         self.ctx.restore()
 
+    # outfile is path to resulting pdf file
+    # background is optional png file to use as background for the pdf
+    def convert(self, outfile, background=None):
 
-if len(sys.argv) < 3:
-    print("Usage: ./stf2pdf input.stf output.pdf [background.png]")
-    sys.exit(1)
+        size = 4963, 6278
+        res = 1/10.0
 
-f = open(sys.argv[1], 'rb')
+        surface = cairo.PDFSurface(outfile, *(i*res for i in size))
 
-size = 4963, 6278
-res = 1/10.0
+        ctx = cairo.Context(surface)
+        ctx.scale(res, res)
+        ctx.save()
 
-surface = cairo.PDFSurface(sys.argv[2], *(i*res for i in size))
-
-ctx = cairo.Context(surface)
-ctx.scale(res, res)
-ctx.save()
-
-if len(sys.argv) > 3:
-    paper = cairo.ImageSurface.create_from_png(open(sys.argv[3], 'rb'))
-    scale = size[0]/paper.get_width()
-    ctx.scale(scale, scale)
-    ctx.set_source_surface(paper, 0, 0)
-else:
-    scale = 1
-    ctx.scale(scale, scale)
-    ctx.set_source_rgb(255, 255, 255)
+        if background:
+            paper = cairo.ImageSurface.create_from_png(open(background, 'rb'))
+            scale = size[0]/paper.get_width()
+            ctx.scale(scale, scale)
+            ctx.set_source_surface(paper, 0, 0)
+        else:
+            scale = 1
+            ctx.scale(scale, scale)
+            ctx.set_source_rgb(255, 255, 255)
 
 
-ctx.paint()
-ctx.restore()
+        ctx.paint()
+        ctx.restore()
 
-# TODO figure out time
-# We need to have the time from pen info in order to parse times? Maybe?
-# info = pen.get_info()
-# t0 = ET.fromstring(info).find("peninfo/time")
-# t0 = time.time() - float(t0.get("absolute"))/1000
-Parser(f).parse(ctx, t0=None, name="LiveScribe notes")
-ctx.show_page()
+        # TODO figure out time
+        # We need to have the time from pen info in order to parse times? Maybe?
+        # info = pen.get_info()
+        # t0 = ET.fromstring(info).find("peninfo/time")
+        # t0 = time.time() - float(t0.get("absolute"))/1000
+        self.parse(ctx, t0=None, name="LiveScribe notes")
+        ctx.show_page()
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 3:
+        print("Usage: ./stf2pdf input.stf output.pdf [background.png]")
+        sys.exit(1)
+        
+    f = open(sys.argv[1], 'rb')
+
+    if len(sys.argv) > 3:
+        STF2PDF(f).convert(sys.argv[2], sys.argv[3])
+    else:
+        STF2PDF(f).convert(sys.argv[2])
