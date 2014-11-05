@@ -9,6 +9,7 @@ Functionality is currently limited: The raw data is downloaded and extracted to 
 * Write convert and sanitize python script:
 ** Move files into sane directory structure (with datetime and page numbers)
 ** Add STF to PDF conversion
+* Add support for deleting files from the pen
 * Get rid of warnings related to xmlChar vs. char
 
 # Requirements

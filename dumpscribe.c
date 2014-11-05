@@ -171,6 +171,47 @@ struct libusb_device_handle *find_smartpen() {
     return NULL;
 }
 
+int delete_named_object(obex_t *handle, const char* name) {
+  // reference: http://dev.zuckschwerdt.org/openobex/doxygen/
+  struct obex_state *state;
+  obex_object_t *obj;
+  obex_headerdata_t hd;
+  int name_size, i;
+  glong nnum;
+  debug("getting obex state...\n");
+  state = (struct obex_state*) OBEX_GetUserData(handle);
+  OBEX_SetTransportMTU(handle, OBEX_MAXIMUM_MTU, OBEX_MAXIMUM_MTU);
+  debug("creating object\n");
+  obj = OBEX_ObjectNew(handle, OBEX_CMD_PUT);
+  if(obj== NULL) {
+    return 1;
+  }
+
+  debug("Setting connection id header to state->connid (%d)\n", state->connid);
+  hd.bq4 = state->connid;
+  debug("Adding connection id header...\n");
+  OBEX_ObjectAddHeader(handle, obj, OBEX_HDR_CONNECTION,
+                       hd, 4, OBEX_FL_FIT_ONE_PACKET);
+  debug("Adding unicode name header...\n");
+  // Add unicode name header
+  hd.bs = (unsigned char *) g_utf8_to_utf16(name, strlen(name), NULL, &nnum, NULL);
+  for (i=0; i<nnum; i++) {
+    uint16_t *wchar = (uint16_t*)&hd.bs[i*2];
+    *wchar = ntohs(*wchar);
+  }
+  name_size = (nnum+1) * sizeof(uint16_t);
+  debug("name size: %d\n", name_size);
+  OBEX_ObjectAddHeader(handle, obj, OBEX_HDR_NAME, hd, name_size, OBEX_FL_FIT_ONE_PACKET);
+
+  debug("Sending request...\n");
+  if(OBEX_Request(handle, obj)) {
+    fprintf(stderr, "OBEX request failed.\n");
+    return 1;
+  }
+  return 0;
+}
+
+
 const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
     printf("attempting to retrieve named object \"%s\"...\n", name);
     struct obex_state* state;
@@ -633,38 +674,6 @@ int main (void) {
     fprintf(stderr, "Failed to download audio from smartpen.\n");
     return 1;
   }
-
-
-
-  /*
-
-  char *changelist;
-  int rc;
-   
-  changelist = smartpen_get_changelist(handle, 0);
-  
-  printf("Changelist: %s\n", changelist);
-  printf("Done\n");
-  
-  changelist = smartpen_get_peninfo(handle);
-  
-  printf("Peninfo: %s\n", changelist);
-  printf("Done\n");
-  
-  FILE *out = fopen("data", "w");
-  
-  rc = smartpen_get_guid(handle, out, "0x0bf11a726d11f3f3", 0);
-  if (!rc) {
-    printf("get_guid fail\n");
-  }
-  
-  smartpen_get_paperreplay(handle, out, 0);
-  
-  fclose(out);
-  
-  smartpen_disconnect(handle);
-  return 0;
-  */
 
   return 0;
 }
