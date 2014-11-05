@@ -16,8 +16,8 @@
 #include <libxml/xpathInternals.h>
 
 #define LS_VENDOR_ID 0x1cfb //LiveScribe Vendor ID
-inline int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } //LiveScribe Pulse(TM) Smartpen
-inline int is_ls_echo(unsigned int c) { return c == 0x1030 || c == 0x1032; } //LiveScribe Echo(TM) Smartpen
+inline int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } // LiveScribe Pulse(TM) Smartpen
+inline int is_ls_echo(unsigned int c) { return c == 0x1030 || c == 0x1032; } // LiveScribe Echo(TM) Smartpen
 
 struct obex_state {
     obex_t *handle;
@@ -111,14 +111,18 @@ void obex_event(obex_t* hdl, obex_object_t* obj, int mode, int event, int obex_c
             printf("oah fail %d\n", rc);
         }
     } else if (obex_rsp != OBEX_RSP_SUCCESS && obex_rsp != OBEX_RSP_CONTINUE) {
-      fprintf(stderr, "Unrecognized OBEX event encountered. Ignoring.\n");
+      fprintf(stderr, "Unrecognized OBEX event encountered.\n");
+      obex_requestdone(state, hdl, obj, obex_cmd, obex_rsp);
+      return;
     } else {
         switch (event) {
             case OBEX_EV_REQDONE:
                 obex_requestdone(state, hdl, obj, obex_cmd, obex_rsp);
                 break;
             default:
-              fprintf(stderr, "Unrecognized OBEX event encountered. Ignoring.\n");
+              fprintf(stderr, "Unrecognized OBEX event encountered.\n");
+              obex_requestdone(state, hdl, obj, obex_cmd, obex_rsp);
+              return;
         }
     }
 }
@@ -507,6 +511,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
   xmlXPathContextPtr xpathCtx; 
   xmlXPathObjectPtr xpathObj; 
   xmlNodeSetPtr nodes;
+  xmlNodePtr page;
   //  xmlAttrPtr attr;
   xmlChar* val;
   int i, size;
@@ -519,6 +524,8 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
     fprintf(stderr, "Failed to retrieve the list of written pages.\n");
     return 1;
   }
+
+  printf("List: %s\n", list);
 
   xmlInitParser();
 
@@ -551,7 +558,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
     }
     //    printf("%s\n", nodes->nodeTab[i]->name);
     //    for(attr = nodes->nodeTab[i]->properties; attr != NULL; attr = attr->next) {
-      //    }
+    //    }
     val = xmlGetProp(nodes->nodeTab[i], BAD_CAST "guid");
     if(!val) {
       continue;
@@ -563,6 +570,23 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
     val = xmlGetProp(nodes->nodeTab[i], BAD_CAST "title");
     printf("title: %s\n", val);
     xmlFree(val);
+
+    // TODO save page numbers and times for use during archive extraction
+
+    // iterate over pages to get page numbers and times 
+    for(page = nodes->nodeTab[i]->children; page != NULL; page = page->next) {
+      // skip non-page nodes (e.g. text nodes);
+      if(strcmp(page->name, "page") != 0) {
+        continue;
+      }
+      val = xmlGetProp(page, BAD_CAST "page");
+      printf("  page number: %s\n", val);
+      xmlFree(val);
+
+      val = xmlGetProp(page, BAD_CAST "end_time");
+      printf("  time time: %s\n", val);
+      xmlFree(val);
+    }
   }
   
   xmlXPathFreeObject(xpathObj);

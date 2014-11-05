@@ -8,6 +8,7 @@ Functionality is currently limited: The raw data is downloaded and extracted, wi
 * Output sane directory structure (with time and date)
 * Add STF to PDF conversion
 * Add command line arguments
+* Get rid of warnings related to xmlChar vs. char
 
 # Requirements
 
