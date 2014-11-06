@@ -675,5 +675,22 @@ int main (void) {
     return 1;
   }
 
+  // list sessions
+  char* sessions = get_named_object(handle, "lspcommand?name=Paper Replay&command=listSessions", &ret);
+  printf("List of sessions: %s\n", sessions);
+
+  /*
+
+const char* Smartpen::getPenletList() {
+    const char *name = "penletlist";
+    int len;
+
+    return getNamedObject(name, &len);
+}
+
+  */
+
+  //pencommand?action=flushfs
+
   return 0;
 }

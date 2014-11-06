@@ -65,6 +65,12 @@ class STF2PDF(parsestf.STFParser):
     # background is optional png file to use as background for the pdf
     def convert(self, outfile, background=None):
 
+        if background:
+            try:
+                f_bg = open(background, 'rb')
+            except:
+                f_bg = None
+
         size = 4963, 6278
         res = 1/10.0
 
@@ -74,11 +80,12 @@ class STF2PDF(parsestf.STFParser):
         ctx.scale(res, res)
         ctx.save()
 
-        if background:
-            paper = cairo.ImageSurface.create_from_png(open(background, 'rb'))
+        if f_bg:
+            paper = cairo.ImageSurface.create_from_png(f_bg)
             scale = size[0]/paper.get_width()
             ctx.scale(scale, scale)
             ctx.set_source_surface(paper, 0, 0)
+            f_bg.close()
         else:
             scale = 1
             ctx.scale(scale, scale)
