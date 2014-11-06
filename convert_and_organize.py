@@ -6,6 +6,7 @@ import errno
 import re
 import datetime
 import struct
+import shutil
 import xml.etree.ElementTree as ET
 
 from stf2pdf import STF2PDF
@@ -44,20 +45,22 @@ def copy_and_convert_stf(page, stf_path, dest):
 
 # Parse page metadata from xml into a dict
 xml_root = ET.parse(os.path.join(indir, "written_page_list.xml"))
-for e in xml_root.findall('.//lsp/page'):
-    address = e.attrib.get('pageaddress')
-    if not address:
-        continue
-    pages[address] = {
-        'number': int(e.attrib.get('page')),
-        'time': pentime_to_unixtime(e.attrib.get('end_time'))
-    }
+for lsp in xml_root.findall('.//lsp'):
+    notebook = lsp.attrib.get('guid')
+    for page in lsp.findall('page'):
+        address = page.attrib.get('pageaddress')
+        if not address:
+            continue
+        pages[address] = {
+            'notebook': notebook,
+            'number': int(page.attrib.get('page')),
+            'time': pentime_to_unixtime(page.attrib.get('end_time'))
+        }
 
 # find stf files
 for root, dirs, files in os.walk(os.path.join(indir, "data")):
     path = root.split('/')
-#    print files
-#    print (len(path) - 1) *'---' , os.path.basename(root)       
+
     page_address = None
     for el in path:
         res = re.match("\d+\.\d+\.\d+\.\d+", el)
@@ -72,8 +75,8 @@ for root, dirs, files in os.walk(os.path.join(indir, "data")):
         page = pages[page_address]
 
         time = datetime.datetime.fromtimestamp(page['time'])
-        timestr = time.strftime('%Y-%m-%d-%H:%M')
-        outfile = os.path.join(outdir, 'pages', page_address + '-' + timestr + '.pdf')
+        timestr = time.strftime('%Y-%m-%d_%H:%M')
+        outfile = os.path.join(outdir, 'notebook-' + page['notebook'], 'page-' + str(page['number']) + '.pdf')
         copy_and_convert_stf(page, os.path.join(root, file), outfile)
 
 
@@ -83,11 +86,14 @@ def copy_audio(audio_file):
     f = open(info_file)
     f.read(16)
     time_raw = f.read(8)
-    time = struct.unpack(">Q", time_raw)[0]
-    time = pentime_to_unixtime(time)
+    timestamp = struct.unpack(">Q", time_raw)[0]
+    timestamp = pentime_to_unixtime(timestamp)
+    time = datetime.datetime.fromtimestamp(timestamp)
+    timestr =  time.strftime('%Y-%m-%d_%H:%M')
     f.close()
 
     # Attempt to get page address of first associated page (if any)
+    page = None
     page_address = None
     pages_file = os.path.join(os.path.dirname(audio_file), 'session.pages')
     try:
@@ -101,26 +107,30 @@ def copy_audio(audio_file):
         
         p3_raw = struct.unpack(">B", f.read(1))[0]
         shared = struct.unpack(">B", f.read(1))[0] # half this byte belongs to p3, half to p4
+
         p3 = (p3_raw << 4) | (shared >> 4)
+
         p4_raw = struct.unpack(">B", f.read(1))[0]
-        p4 = ((shared & 240) << 8) | p4_raw
+        p4 = ((shared & 15) << 8) | p4_raw
 
-        print("address: " + str(p1) + '.' + str(p2) + '.' + str(p3) + '.' + str(p4))
+        page_address = str(p1) + '.' + str(p2) + '.' + str(p3) + '.' + str(p4)
+        page = pages[page_address]
+
     except:
-        pass
-#    p3_raw = p3_raw + (shared >> 4)
-#    p4_raw = f.read(1)
-#    print(type(p3_raw))
-#        p2 = struct.unpack(">H", p2_raw)[0]        
+        page_address = None
 
+    if page:
+        dest_dir = os.path.join(outdir, 'notebook-' + page['notebook'])
+        mkdir_p(dest_dir)
+        dest = os.path.join(dest_dir, 'page-' + str(page['number']) + "-recording_" + timestr + ".aac")
 
-#        print "ARRA"
-#        pass
+    else:
+        dest_dir = os.path.join(outdir, 'other_recordings')
+        mkdir_p(dest_dir)
+        dest = os.path.join(dest_dir, 'recording_' + timestr + ".aac")
 
-
-
-
-
+    shutil.copyfile(audio_file, dest)
+    os.utime(dest, (timestamp, timestamp))
 
 
 
@@ -140,5 +150,4 @@ for root, dirs, files in os.walk(os.path.join(indir, "userdata")):
         if not res:
             continue
 
-        print "File: " + res.group(0) + " id: " + (audio_id or "none")
         copy_audio(os.path.join(root, file))
