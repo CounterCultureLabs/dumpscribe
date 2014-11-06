@@ -1,16 +1,16 @@
 
-Downloads all written notes and recorded audio from a LiveScribe Pulse or Echo pen. 
+Downloads all written notes and recorded audio from a LiveScribe Pulse or Echo pen.
 
-Functionality is currently limited: The raw data is downloaded and extracted to tmp/, with no conversion to sane formats or association of data with time of recording/writing.
+This program has two parts:
+ 
+* The dumpscribe command downloads and extracts all relevant info to tmp/ in the raw format form the pen. It is written in C.
+* The convert_and_organize.py command converts written notes to PDF, parses meta-data and puts everything into a sane folder structure in out/
 
 # TODO
 
-* Add command line arguments
-* Write convert and sanitize python script:
-** Move files into sane directory structure (with datetime and page numbers)
-** Add STF to PDF conversion
+* Add command line arguments to dumpscribe and convert_and_organize.py
 * Add support for deleting files from the pen
-* Get rid of warnings related to xmlChar vs. char
+* Get rid of compile warnings related to xmlChar vs. char
 
 # Requirements
 
@@ -35,6 +35,10 @@ This usage text is aspirational.
   -v   Enable verbose mode (debug output).
 
   All written and audio notes will be downloaded from the smartpen and put into the destination directory. 
+```
+
+```
+./convert_and_organize.py <dir_with_dumped_data> <output_dir>
 ```
 
 # License and Copyright
