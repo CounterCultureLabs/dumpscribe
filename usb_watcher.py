@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import argparse
+import daemon
 import sys
 import glib
 import gudev
@@ -27,9 +29,25 @@ def callback(client, action, device, user_data):
         if model_id == dev_id:
             pen_detected()
 
+def run():
+    client = gudev.Client(["usb/usb_device"])
+    client.connect("uevent", callback, None)
+    
+    loop = glib.MainLoop()
+    loop.run()
 
-client = gudev.Client(["usb/usb_device"])
-client.connect("uevent", callback, None)
+parser = argparse.ArgumentParser(description='Automatically run dumpscribe when LiveScribe pen is connected.')
+parser.add_argument('-d', dest='daemonize', action='store_true',
+                    help='Daemonize this process)')
 
-loop = glib.MainLoop()
-loop.run()
+args = parser.parse_args()
+
+if args.daemonize:
+    print "Starting dumpscribe usb watcher and daemonizing"
+    with daemon.DaemonContext():
+        run()
+else:
+    print "Starting dumpscribe usb watcher"
+    run()
+
+

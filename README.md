@@ -8,6 +8,11 @@ This program has two parts:
 
 # TODO
 
+* usb_watcher.py
+** Make it actually call dumpscribe and convert_and_organize.py
+** Add upstart script
+* Make dumpscript calculate and write timestamp offset to disk when run
+** Needs to get the current time from peninfo, calc offset, and write
 * Add command line arguments to dumpscribe and convert_and_organize.py
 * Add support for deleting files from the pen
 * Get rid of compile warnings related to xmlChar vs. char
