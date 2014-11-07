@@ -574,6 +574,8 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile, const ch
 int get_audio(obex_t *handle, long long int start_time, const char* outfile, const char* outdir) {
 	char name[256];
 
+  printf("Downloading audio data.\n");
+
 	snprintf(name, sizeof(name), "lspdata?name=com.livescribe.paperreplay.PaperReplay&start_time=%lld&returnVersion=0.3&remoteCaller=WIN_LD_200", start_time);
 
   return get_archive(handle, name, outfile, outdir);
@@ -608,6 +610,8 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
   int i, size;
   ssize_t written;
   char* filepath;
+
+  printf("Downloading written notes.\n");
 
   // This is safe since we know exactly what we're casting.
   const xmlChar* xpathExpr = BAD_CAST "/xml/changelist/lsp";

@@ -35,7 +35,7 @@ def pen_detected():
         sys.stderr.write("convert_and_organize.py failed.\n")
         return
 
-    if len(args.post_command) > 0:
+    if args.post_command:
         print "Running user-supplied command:"
         ret = subprocess.call(args.post_command[0], shell=True)
         if ret != 0:
