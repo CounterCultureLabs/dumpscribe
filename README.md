@@ -91,20 +91,20 @@ make
 * Add support for deleting files from the pen (need to reverse-engineer)
 * Get rid of compile warnings related to xmlChar vs. char
 
+# Bugs and limitations
+
+* If two smartpens are connected at once, dumpscribe will segfault.
+
 # License and Copyright
 
-dumpscribe and convert_and_organize.py is based on, and contains code from, the following projects:
+This project is based on, and contains code from, the following projects:
 
 * [libsmartpen](https://github.com/srwalter/libsmartpen)
 * [LibreScribe](https://github.com/dylanmtaylor/LibreScribe)
 
-dumpscribe-browser contains some code from [phoenix](https://github.com/pfraze/phoenix). For copyright and license info see the file browser/COPYING.
-
 ## License
 
-dumpscribe and convert_and_organize.py (and its dependencies included in this repository) are licensed under GPLv2. For more info see the COPYING file.
-
-dumpscribe-browser is licensed under the license in 
+This project is licensed under GPLv2. For more info see the COPYING file.
 
 ## Copyright
 
