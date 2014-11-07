@@ -7,7 +7,7 @@ This program has three parts:
 
 The dumpscribe command downloads and extracts all relevant info from the smartpen in the raw format as it exists on the pen. The audio is in aac format. The written notes are in a proprietary format called stf and the meta-data is in a combination of XML and undocumented binary files.
 
-## dumpscribe usage: 
+## Usage
 
 ```
 ./dumpscribe [-d] output_dir
@@ -20,7 +20,7 @@ The -d flag enables more verbose output which is useful for debugging.
 
 The convert_and_organize.py command converts written notes to PDF, converts audio data to Ogg Vorbis, parses meta-data and puts everything into a sane folder structure. It can optionally generate PNG thumbnails of the PDFs.
 
-## convert_and_organize.py usage:
+## Usage
 
 ```
 Usage: convert_and_organize.py [-h] [--aac] [--thumb] [--thumbsize THUMBSIZE]
@@ -44,7 +44,7 @@ optional arguments:
 
 The usb_watcher.py command waits for a smartpen to be connected to USB and then runs first dumpscribe, then convert_and_organize.py and optionally a user-supplied command at the end (e.g. to upload the resulting data to a server). It is meant to be run as a daemon.
 
-## usb_watcher.py usage:
+## Usage
 
 ```
 Usage: usb_watcher.py [-h] [-d] [-c POST_COMMAND]
