@@ -1,0 +1,24 @@
+{
+  "name": "dumpscribe-browser",
+  "version": "0.0.1",
+  "description": "Small web app for browsing dumpscribe output",
+  "main": "index.js",
+  "dependencies": {
+    "body-parser": "^1.9.2",
+    "expresss": "~4.10.1",
+    "minimist": "^1.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/counterculturelabs/dumpscribe.git"
+  },
+  "keywords": [
+    "LiveScribe",
+    "smartpen",
+    "dumpscribe"
+  ],
+  "author": {
+    "name": "Marc Juul",
+    "email": "npm@juul.io"
+  }
+}

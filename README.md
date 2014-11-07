@@ -1,7 +1,7 @@
 
 Downloads all written notes and recorded audio from a LiveScribe Pulse or Echo pen.
 
-This program has three parts:
+This program has four parts:
  
 # dumpscribe
 
@@ -66,6 +66,10 @@ optional arguments:
   -c POST_COMMAND       Command to run after running convert_and_organize.py
 ```
 
+# dumpscribe-browser
+
+A simple node.js web app that lets users browse the written and recorded notes.
+
 # Requirements
 
 TODO list the required packages
@@ -89,18 +93,22 @@ make
 
 # License and Copyright
 
-This tool is based on, and contains code from, the following projects:
+dumpscribe and convert_and_organize.py is based on, and contains code from, the following projects:
 
 * [libsmartpen](https://github.com/srwalter/libsmartpen)
 * [LibreScribe](https://github.com/dylanmtaylor/LibreScribe)
 
+dumpscribe-browser contains some code from [phoenix](https://github.com/pfraze/phoenix). For copyright and license info see the file browser/COPYING.
+
 ## License
 
-This work is licensed under GPLv2. For more info see the COPYING file.
+dumpscribe and convert_and_organize.py (and its dependencies included in this repository) are licensed under GPLv2. For more info see the COPYING file.
+
+dumpscribe-browser is licensed under the license in 
 
 ## Copyright
 
-This work has had multiple contributors. Not all of them have identified themselves clearly.
+The code used in dumpscribe and convert_and_organize.py has had multiple contributors. Not all of them have identified themselves clearly.
 
 * Copyright 2010 to 2011 Steven Walter (https://github.com/srwalter)
 * Copyright 2010 Scott Hassan
