@@ -78,6 +78,7 @@ def gen_thumbnail(pdf_filepath):
     filename = os.path.basename(pdf_filepath) + '.png'
     png_filepath = os.path.join(dirname, filename)
 
+    print "Generating thumbnail"
     cmd = 'convert -resize %s %s %s' % (thumbnail_size, pdf_filepath, png_filepath)
     subprocess.call(cmd, shell=True)
     
