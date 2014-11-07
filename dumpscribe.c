@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <openobex/obex.h>
 #include <string.h>
 #include <stdlib.h>
@@ -29,6 +30,54 @@ struct obex_state {
 };
 
 int debug_mode = 0;
+
+
+// concatenate file paths
+// from https://www.gnu.org/software/libc/manual/html_node/Copying-and-Concatenation.html#Copying-and-Concatenation
+char *concat(const char *str, ...)  {
+  va_list ap;
+  size_t allocated = 100;
+  char *result = (char *) malloc(allocated);
+
+  if(result != NULL) {
+    char *newp;
+    char *wp;
+    const char *s;
+    
+    va_start(ap, str);
+    
+    wp = result;
+    for(s = str; s != NULL; s = va_arg(ap, const char *)) {
+      size_t len = strlen(s);
+      
+      // Resize the allocated memory if necessary.
+      if(wp + len + 1 > result + allocated) {
+        allocated = (allocated + len) * 2;
+        newp = (char *) realloc(result, allocated);
+        if(newp == NULL) {
+          free(result);
+          return NULL;
+        }
+        wp = newp + (wp - result);
+        result = newp;
+      }
+      
+      wp = mempcpy(wp, s, len);
+    }
+    
+    // Terminate the result string.
+    *wp++ = '\0';
+    
+    // Resize memory to the optimal size.
+    newp = realloc(result, wp - result);
+    if (newp != NULL)
+      result = newp;
+    
+    va_end(ap);
+  }
+  
+  return result;
+}
 
 void debug(const char* format, ... ) {
   if(debug_mode) {
@@ -72,7 +121,6 @@ void obex_requestdone(struct obex_state* state, obex_t* hdl,
                 if (header_id == OBEX_HDR_CONNECTION) {
                     state->got_connid=1;
                     state->connid = hdata.bq4;
-//                  printf("Connection ID: %d\n", state->connid);
                 }
             }
             break;
@@ -108,7 +156,9 @@ void obex_event(obex_t* hdl, obex_object_t* obj, int mode, int event, int obex_c
         const unsigned int flags = 0;
         const int rc = OBEX_ObjectAddHeader(hdl, obj, OBEX_HDR_CONNECTION, hd, size, flags);
         if (rc < 0) {
-            printf("oah fail %d\n", rc);
+          fprintf(stderr, "OBEX adding header failed\n");
+          obex_requestdone(state, hdl, obj, obex_cmd, obex_rsp);
+          return;
         }
     } else if (obex_rsp != OBEX_RSP_SUCCESS && obex_rsp != OBEX_RSP_CONTINUE) {
       fprintf(stderr, "Unrecognized OBEX event encountered.\n");
@@ -213,7 +263,7 @@ int delete_named_object(obex_t *handle, const char* name) {
 
 
 const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
-    printf("attempting to retrieve named object \"%s\"...\n", name);
+    debug("attempting to retrieve named object \"%s\"...\n", name);
     struct obex_state* state;
     int req_done;
     obex_object_t *obj;
@@ -245,7 +295,7 @@ const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
 
     if (OBEX_Request(handle, obj) < 0) {
         OBEX_ObjectDelete(handle,obj);
-        printf("an error occured while retrieving the object. returning null value.\n");
+        fprintf(stderr, "An error occured while OBEX retrieving an object. Returning null value.\n");
         return NULL;
     }
 
@@ -338,14 +388,14 @@ obex_t *smartpen_connect(short vendor, short product) {
     }
     
     if (rc < 0 || !state->got_connid) {
-      printf("Retry connection...\n");
+      debug("Retry connection...\n");
       OBEX_Cleanup(handle);
       continue;
     }
         
     const char* buf = get_named_object(handle, "ppdata?key=pp0000", &rc);
     if(!buf) {
-      printf("Retry connection...\n");
+      debug("Retry connection...\n");
       OBEX_Cleanup(handle);
       smartpen_reset(vendor, product);
       continue;
@@ -481,7 +531,7 @@ int extract(const char* filename, const char* outdir) {
 
 
 // retrieve data in zip format
-int get_archive(obex_t *handle, char* object_name, const char* outfile) {
+int get_archive(obex_t *handle, char* object_name, const char* outfile, const char* outdir) {
 	uint32_t len;
   uint32_t written;
   const char* buf;
@@ -505,7 +555,7 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile) {
   fclose(out);
   
   // TODO get this dir from command line argument
-  ret = extract(outfile, "tmp");
+  ret = extract(outfile, outdir);
   if(ret) {
     fprintf(stderr, "Failed to extract downloaded file.\n");
     unlink(outfile);
@@ -521,20 +571,20 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile) {
 }
 
 
-int get_audio(obex_t *handle, long long int start_time, const char* outfile) {
+int get_audio(obex_t *handle, long long int start_time, const char* outfile, const char* outdir) {
 	char name[256];
 
 	snprintf(name, sizeof(name), "lspdata?name=com.livescribe.paperreplay.PaperReplay&start_time=%lld&returnVersion=0.3&remoteCaller=WIN_LD_200", start_time);
 
-  return get_archive(handle, name, outfile);
+  return get_archive(handle, name, outfile, outdir);
 }
 
-int get_written_page(obex_t *handle, const char* object_name, long long int start_time, const char* outfile) {
+int get_written_page(obex_t *handle, const char* object_name, long long int start_time, const char* outfile, const char* outdir) {
 	char name[256];
 
   snprintf(name, sizeof(name), "lspdata?name=%s&start_time=%lld", object_name, start_time);
 
-  return get_archive(handle, name, outfile);
+  return get_archive(handle, name, outfile, outdir);
 }
 
 // Get a list of written pages created since start_time
@@ -546,7 +596,7 @@ const char* get_written_page_list(obex_t* handle, long long int start_time, uint
 }
 
 // Download all written pages
-int get_all_written_pages(obex_t* handle, long long int start_time) {
+int get_all_written_pages(obex_t* handle, long long int start_time, const char* outdir) {
 
   uint32_t list_len;
   xmlDocPtr doc;
@@ -557,6 +607,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
   FILE* pagelistfile;
   int i, size;
   ssize_t written;
+  char* filepath;
 
   // This is safe since we know exactly what we're casting.
   const xmlChar* xpathExpr = BAD_CAST "/xml/changelist/lsp";
@@ -567,8 +618,10 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
     return 1;
   }
 
+  filepath = concat(outdir, "/", "written_page_list.xml");
+
   // TODO get this dir from command line argument
-  pagelistfile = fopen("tmp/written_page_list.xml", "w");
+  pagelistfile = fopen(filepath, "w");
   if(!pagelistfile) {
     fprintf(stderr, "Failed to open written_page_list.xml for writing.\n");
     return 1;
@@ -581,6 +634,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
   }
 
   fclose(pagelistfile);
+  free(filepath);
 
   debug("Written page list:\n%s\n", list);
 
@@ -619,7 +673,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
       continue;
     }
     debug("found guid: %s\n", val);
-    get_written_page(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip");
+    get_written_page(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip", outdir);
     xmlFree(val);
   }
   
@@ -632,19 +686,56 @@ int get_all_written_pages(obex_t* handle, long long int start_time) {
 }
 
 
-int main (void) {
+void usage(const char* cmd_name) {
+  printf("Usage: %s [-d] output_dir\n", cmd_name);
+}
+
+int main(int argc, char** argv) {
 
   uint16_t usb_product_id;
   struct libusb_device_handle* dev;
-  int ret;
   const char* audio_outfile = "/tmp/dumpscribe_audio.zip";
+  int ret, opt, i;
+  uint32_t len;
+  int extra_args = 0;
+  char* output_dir;
+  
+  if(argc < 1) {
+    usage("dumpscribe");
+    return 1;
+  }
 
-  // TODO take command line argument for this
-  debug_mode = 1;
+  while((opt = getopt(argc, argv, "hd")) != -1) {
+    switch (opt) {
+      case 'h': 
+        usage(argv[0]);
+        return 0;
+        break;
+      case 'd':
+        debug_mode = 1;
+        break;
+      default:        
+        return 1;
+    }
+  }
+
+  for(i = optind; i < argc; i++) {
+    extra_args++;
+    if(extra_args > 1) {
+      usage(argv[0]);
+      return 1;
+    }
+    output_dir = argv[i];
+  }
+
+  if(extra_args < 1) {
+    usage(argv[0]);
+    return 1;
+  }
 
   dev = find_smartpen();
   if(!dev) {
-    fprintf(stderr, "No smartpen found. Are you sure it's connected?");
+    fprintf(stderr, "No smartpen found. Are you sure it's connected?\n");
     return 1;
   }
   
@@ -663,21 +754,23 @@ int main (void) {
 
   printf("Connected to smartpen!\n");
 
-  ret = get_all_written_pages(handle, 0);
+  ret = get_all_written_pages(handle, 0, output_dir);
   if(ret) {
     fprintf(stderr, "Failed to get list of written pages from smartpen.\n");
     return 1;
   }
 
-  ret = get_audio(handle, 0, audio_outfile);
+  ret = get_audio(handle, 0, audio_outfile, output_dir);
   if(ret) {
     fprintf(stderr, "Failed to download audio from smartpen.\n");
     return 1;
   }
 
   // list sessions
-  char* sessions = get_named_object(handle, "lspcommand?name=Paper Replay&command=listSessions", &ret);
+  /*
+  char* sessions = get_named_object(handle, "lspcommand?name=Paper Replay&command=listSessions", &len);
   printf("List of sessions: %s\n", sessions);
+  */
 
   /*
 
