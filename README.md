@@ -13,8 +13,8 @@ This program has two parts:
 ** Add upstart script
 * Make dumpscript calculate and write timestamp offset to disk when run
 ** Needs to get the current time from peninfo, calc offset, and write
-* Add command line arguments to dumpscribe and convert_and_organize.py
-* Add support for deleting files from the pen
+* Add command line arguments to dumpscribe
+* Add support for deleting files from the pen (need to reverse-engineer)
 * Get rid of compile warnings related to xmlChar vs. char
 
 # Requirements
