@@ -89,7 +89,8 @@ void debug(const char* format, ... ) {
 }
 
 
-// TODO what the hell is this?
+// not sure why this is necessary
+// it seems to be some sort of hackish device reset 
 void swizzle_usb(short vendor, short product) {
     libusb_context* ctx;
     libusb_device_handle* dev;
@@ -101,6 +102,8 @@ void swizzle_usb(short vendor, short product) {
     assert(dev);
 
     libusb_set_configuration(dev, 1);
+
+    // toggle between interfaces on usb multifunction device?
     libusb_set_interface_alt_setting(dev, 1, 0);
     libusb_set_interface_alt_setting(dev, 1, 1);
 
@@ -310,6 +313,9 @@ const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
     } else {
         *len = 0;
     }
+
+    // TODO we never free this? Do we need an OBEX call or can we just call free?
+    // check openobex api: http://dev.zuckschwerdt.org/openobex/doxygen/html/obex_8h.html
     return state->body;
 }
 
@@ -481,10 +487,6 @@ int extract(const char* filename, const char* outdir) {
 
   while(archive_read_next_header(in, &entry) == ARCHIVE_OK) {
 
-    // TODO skip files that we don't want
-    // and change output directory format to something human readable
-    // e.g. notebook_name/page_number/date_and_time/
-
     r = archive_write_header(out, entry);
     if(r != ARCHIVE_OK) {
       chdir(oldwd);
@@ -554,7 +556,6 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile, const ch
   
   fclose(out);
   
-  // TODO get this dir from command line argument
   ret = extract(outfile, outdir);
   if(ret) {
     fprintf(stderr, "Failed to extract downloaded file.\n");
@@ -595,6 +596,15 @@ const char* get_written_page_list(obex_t* handle, long long int start_time, uint
 
     snprintf(name, sizeof(name), "changelist?start_time=%lld", start_time);
     return get_named_object(handle, name, len);
+}
+
+// TODO does this return anything useful? maybe return void and remove len argument 
+// TODO verify that this works
+const char* delete_notebook(obex_t* handle, char* doc_id, uint32_t* len) {
+  char name[256];
+
+  snprintf(name, sizeof(name), "lspcommand?name=Paper.Replay&command=retire?docId=%s?copy=0?deleteSession=true", doc_id);
+  return get_named_object(handle, name, len);
 }
 
 // Download all written pages
@@ -676,8 +686,13 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
     if(!val) {
       continue;
     }
-    debug("found guid: %s\n", val);
+    debug("found notebook guid %s now retrievieving notebook pages \n", val);
+
     get_written_page(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip", outdir);
+
+    // TODO check if get_written_page succeeded (and ensure that it actually reports failure on failure)
+    // Then if it did succeed, and if the proper command line argument was given, call delete_notebook
+
     xmlFree(val);
   }
   
@@ -769,6 +784,10 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Failed to download audio from smartpen.\n");
     return 1;
   }
+
+
+
+  // TODO figure out how to delete audio
 
   // list sessions
   /*
