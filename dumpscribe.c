@@ -303,13 +303,16 @@ const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
     }
 
     req_done = state->req_done;
+    
     while (state->req_done == req_done) {
         OBEX_HandleInput(handle, 100);
     }
+
     // done handling input
     if (state->body) {
         *len = state->body_len;
-        state->body[state->body_len] = '\0';
+        // causes segfault and I'm not sure it's ever needed
+        //        state->body[state->body_len] = '\0';
     } else {
         *len = 0;
     }
@@ -461,16 +464,21 @@ int extract(const char* filename, const char* outdir) {
   char oldwd[PATH_MAX];
   char* ret;
   int r;
-  
+
   ret = getcwd(oldwd, PATH_MAX);
   if(!ret) {
     return 1;
   }
 
   in = archive_read_new();
+  if(!in) {
+    fprintf(stderr, "Could not initialize extractor.\n");
+    return 1;
+  }
+
   archive_read_support_filter_all(in);
   archive_read_support_format_all(in);
-  r = archive_read_open_filename(in, filename, 512);
+  r = archive_read_open_filename(in, filename, PATH_MAX-1);
   if(r != ARCHIVE_OK) {
     chdir(oldwd);
     return 1;
@@ -483,6 +491,11 @@ int extract(const char* filename, const char* outdir) {
   }
 
   out = archive_write_disk_new();
+  if(!out) {
+    fprintf(stderr, "Could not allocate archive extraction data structure.\n");
+    return 1;
+  }
+  
   archive_write_disk_set_options(out, ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_SECURE_NODOTDOT);
 
   while(archive_read_next_header(in, &entry) == ARCHIVE_OK) {
@@ -504,8 +517,8 @@ int extract(const char* filename, const char* outdir) {
       chdir(oldwd);
       return 1;
     }
-
   }
+  
   r = archive_read_close(in);
   if(r != ARCHIVE_OK) {
     chdir(oldwd);
@@ -547,13 +560,13 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile, const ch
   }
   
 	buf = get_named_object(handle, object_name, &len);
-  
+
   written = fwrite(buf, len, 1, out);
   if(!written) {
     fprintf(stderr, "Data could not be written to disk. Is your disk full?\n");
     return 1;
   }
-  
+
   fclose(out);
   
   ret = extract(outfile, outdir);
@@ -562,7 +575,7 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile, const ch
     unlink(outfile);
     return 1;
   }
-
+  
   ret = unlink(outfile);
   if(ret) {
     fprintf(stderr, "Warning: Failed to delete file: %s.\n", outfile);
@@ -575,9 +588,10 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile, const ch
 int get_audio(obex_t *handle, long long int start_time, const char* outfile, const char* outdir) {
 	char name[256];
 
-  printf("Downloading audio data.\n");
+  debug("Downloading audio data.\n");
 
-	snprintf(name, sizeof(name), "lspdata?name=com.livescribe.paperreplay.PaperReplay&start_time=%lld&returnVersion=0.3&remoteCaller=WIN_LD_200", start_time);
+  	snprintf(name, sizeof(name), "lspdata?name=com.livescribe.paperreplay.PaperReplay&start_time=%lld&returnVersion=0.3&remoteCaller=WIN_LD_200", start_time);
+  //	snprintf(name, sizeof(name), "lspdata?name=com.livescribe.paperreplay.PaperReplay&start_time=%lld&remoteCaller=WIN_LD_200", start_time);
 
   return get_archive(handle, name, outfile, outdir);
 }
@@ -633,7 +647,8 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
   }
 
   filepath = concat(outdir, "/", "written_page_list.xml");
-
+  //const char* filepath = "tmp/written_page_list.xml";
+  
   // TODO get this dir from command line argument
   pagelistfile = fopen(filepath, "w");
   if(!pagelistfile) {
@@ -686,7 +701,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
     if(!val) {
       continue;
     }
-    debug("found notebook guid %s now retrievieving notebook pages \n", val);
+    debug("found notebook guid %s now retrievieving notebook pages\n", val);
 
     get_written_page(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip", outdir);
 
@@ -779,12 +794,14 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  printf("Downloading audio.\n");
+
   ret = get_audio(handle, 0, audio_outfile, output_dir);
   if(ret) {
     fprintf(stderr, "Failed to download audio from smartpen.\n");
     return 1;
   }
-
+  
 
 
   // TODO figure out how to delete audio
