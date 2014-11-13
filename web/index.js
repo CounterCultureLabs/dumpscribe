@@ -2,14 +2,18 @@
 
 var fs = require('fs');
 var util = require('util');
+var sanitize = require("sanitize-filename");
 var async = require('async');
 var express     = require('express');
 var path        = require('path');
 var bodyParser  = require('body-parser');
 var argv = require('minimist')(process.argv.slice(2));
+var settings = require('./settings.js')
+
+var port = argv.port || settings.port || 3000;
 
 function usage() {
-  console.error("Usage: index.js output_from_convert_and_organize.py")
+  console.error("Usage: index.js unmuddle_output_dir")
 }
 
 function error(res, msg) {
@@ -31,9 +35,24 @@ var app = express();
 app.use(express.static(path.join(__dirname, 'static')));
 
 var pendataMount = 'pendata';
-
 app.use('/' + pendataMount, express.static(dataDir));
 
+app.use(bodyParser.urlencoded({
+  extended: true
+}));
+
+function getNotebookName(id, callback) {
+    var name = null;
+    var nbDirname = 'notebook-'+id;
+    var nbDir = path.join(dataDir, nbDirname);
+
+    fs.readFile(path.join(nbDir, "notebook_name"), function(err, nbname) {
+        if(!err) {
+            name = nbname.toString('utf8').replace(/[\n\r\t]+/, '');
+        }
+        callback(null, name);
+    });
+}
 
 function getNotebookPages(id, callback) {
     var pages = {};
@@ -41,9 +60,9 @@ function getNotebookPages(id, callback) {
     var m;
     var nbDirname = 'notebook-'+id;
     var nbDir = path.join(dataDir, nbDirname);
+
     fs.readdir(nbDir, function(err, nbfiles) {
         if(err) return callback(err);
-
 
         // for each file in the notebook directory
         async.eachSeries(nbfiles, function(nbfile, fcallback) {
@@ -52,11 +71,8 @@ function getNotebookPages(id, callback) {
                 m = nbfile.match(/page-(\d+)/);
                 if(!m) return fcallback();
                 var number = parseInt(m[1]);
-//                console.log("parseInt: " + m[1]);
                 fs.stat(path.join(nbDir, nbfile), function(err, stats) {
                     if(err) return fcallback(err);
-
-//                    console.log("for page " + nbfile + ' - ' + number);
 
                     if(!pages[number]) {
                         pages[number] = {
@@ -69,7 +85,6 @@ function getNotebookPages(id, callback) {
                     pages[number].date = stats.ctime;
                     pages[number].size = stats.size;
                     fcallback();
-//                    console.log(pages);
                 });
                 
             // for audio files
@@ -164,6 +179,23 @@ function getNotebookSummary(basePath, nbdirs, callback) {
     
 }
 
+function change_notebook_name(id, name, callback) {
+    
+    var dirname = sanitize('notebook-'+id);
+    var nbpath = path.join(dataDir, dirname);
+
+    if((name.length < 1) || (name.length > 256)) {
+        return callback("Name is too long. Must be between 1 and 256 characters.")
+    }
+
+    fs.writeFile(path.join(nbpath, "notebook_name"), name, function(err, nbname) {
+        if(!err) {
+            return callback(err);
+        }
+        callback(name);
+    });
+}
+
 // Return list of notebooks in JSON
 app.get('/notebooks', function(req, res){
     fs.readdir(dataDir, function(err, files) {
@@ -214,10 +246,39 @@ app.use('/notebook/:id', function(req, res, next){
             pages = orderPages(pages, 'pagenumber');
         }
 
-        res.send(JSON.stringify({status: 'success', data: pages}));
+        getNotebookName(id, function(err, name) {
+
+            res.send(JSON.stringify({status: 'success', data: {
+                name: name,
+                id: id,
+                pages: pages
+            }}));
+            next();
+        });
+    });
+});
+
+app.use('/notebook-change-name/:id', function(req, res, next){
+    var id = req.params.id;
+    console.log(req.body);
+    if(!id || !req.body.name || !req.body.password) {
+        return error(res, "Missing id, password or new notebook name");
+    }
+
+    if(req.body.password != settings.admin_password) {
+        return error(res, "Wrong password. Hint: The password is in the file web/server.js on the server");
+    }
+
+    change_notebook_name(id, req.body.name, function(err, new_name) {
+        if(err) {
+            return error(res, "Error changing notebook name: " + err);
+        }
+
+        res.send(JSON.stringify({status: 'success', data: {name: new_name}}));
         next();
     });
 });
+
 
 // TODO request for a specific notebook and order by page or by datetime
 app.get('/audio', function(req, res){
@@ -229,5 +290,6 @@ app.post('/name_notebook', function(req, res){
     res.send("not implemented");
 });
 
+console.log("Listening on http://localhost:" + port + "/")
 
-app.listen(4000);
+app.listen(port);

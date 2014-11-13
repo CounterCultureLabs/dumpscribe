@@ -588,10 +588,9 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile, const ch
 int get_audio(obex_t *handle, long long int start_time, const char* outfile, const char* outdir) {
 	char name[256];
 
-  debug("Downloading audio data.\n");
+  printf("Downloading audio.\n");
 
-  	snprintf(name, sizeof(name), "lspdata?name=com.livescribe.paperreplay.PaperReplay&start_time=%lld&returnVersion=0.3&remoteCaller=WIN_LD_200", start_time);
-  //	snprintf(name, sizeof(name), "lspdata?name=com.livescribe.paperreplay.PaperReplay&start_time=%lld&remoteCaller=WIN_LD_200", start_time);
+  snprintf(name, sizeof(name), "lspdata?name=com.livescribe.paperreplay.PaperReplay&start_time=%lld&returnVersion=0.3&remoteCaller=WIN_LD_200", start_time);
 
   return get_archive(handle, name, outfile, outdir);
 }
@@ -647,7 +646,6 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
   }
 
   filepath = concat(outdir, "/", "written_page_list.xml");
-  //const char* filepath = "tmp/written_page_list.xml";
   
   // TODO get this dir from command line argument
   pagelistfile = fopen(filepath, "w");
@@ -793,8 +791,6 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Failed to get list of written pages from smartpen.\n");
     return 1;
   }
-
-  printf("Downloading audio.\n");
 
   ret = get_audio(handle, 0, audio_outfile, output_dir);
   if(ret) {

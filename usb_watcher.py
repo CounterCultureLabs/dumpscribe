@@ -10,7 +10,7 @@ import subprocess
 
 #############################################################
 # Watch for USB connection of LiveScribe Pulse or Echo pens #
-# and run dumpscribe and convert_and_organize.py on connect "
+# and run dumpscribe and the unmuddle.py script on connect  #
 #############################################################
 
 LS_VENDOR_ID = '1cfb'
@@ -22,7 +22,7 @@ def pen_detected():
     organized_dir = args.organized_output_dir[0]
     dumpscribe = os.path.join(args.dumpscribe_dir[0], 'dumpscribe')
     dumpscribe_cmd = '"%s" "%s"' % (dumpscribe, dump_dir)
-    organize = os.path.join(args.dumpscribe_dir[0], 'convert_and_organize.py')
+    organize = os.path.join(args.dumpscribe_dir[0], 'unmuddle.py')
     organize_cmd = '"%s" --thumb "%s" "%s"' % (organize, dump_dir, organized_dir)
 
     ret = subprocess.call(dumpscribe_cmd, shell=True)
@@ -32,7 +32,7 @@ def pen_detected():
 
     ret = subprocess.call(organize_cmd, shell=True)
     if ret != 0:
-        sys.stderr.write("convert_and_organize.py failed.\n")
+        sys.stderr.write("unmuddle.py failed.\n")
         return
 
     if args.post_command:
@@ -71,13 +71,13 @@ parser = argparse.ArgumentParser(
 parser.add_argument('-d', dest='daemonize', action='store_true',
                     help='Daemonize this process')
 parser.add_argument('-c', dest='post_command', nargs=1,
-                    help='Command to run after running convert_and_organize.py')
+                    help='Command to run after running unmuddle.py')
 parser.add_argument('dumpscribe_dir', nargs=1,
                     help="The full path to the directory where dumpscribe is installed.")
 parser.add_argument('dumpscribe_output_dir', nargs=1, 
                     help="Where dumpscribe should place its output.")
 parser.add_argument('organized_output_dir', nargs=1, 
-                    help="Where convert_and_organize should place its output.")
+                    help="Where unmuddle.py should place its output.")
 
 args = parser.parse_args()
 

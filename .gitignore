@@ -2,4 +2,5 @@
 \#*\#
 tmp/**
 __pycache__/**
-browser/node_modules/**
+web/node_modules/**
+web/settings.js

@@ -1,0 +1,41 @@
+
+html, body {
+  background-color: #EEE;
+}
+
+body {
+  font-family: sans serif;
+  padding: 30px 50px;
+
+}
+
+img {
+  background-color: white;
+}
+
+#flash {
+  color: red;
+  font-weight: bold;
+  display: none;
+}
+
+.notebook-summary {
+  cursor: pointer;
+}
+
+.page {
+  padding-bottom: 50px;
+}
+
+a:link, a:visited, a:active {
+  color: black;
+}
+
+a:hover {
+  color: gray;
+}
+
+a.change-name {
+  font-size: 12px;
+  padding-left: 10px;
+}

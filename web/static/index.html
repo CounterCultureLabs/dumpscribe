@@ -29,7 +29,20 @@
       <div class="date-caption">Last updated <%- $.timeago(date) %></div>
     </div>
   </script>
+  <script id="change-name-template" type="text/templatedata">
+    <h3>Changing name of notebook with id: <%- notebook_id %></h3>
+    <form>
+      <input type="hidden" name="id" value="<%- notebook_id %>" /><br/>
+      <label for="name">New name: </label><br/>
+      <input type="text" name="name" /><br/>
+      <label for="name">Admin password: </label><br/>
+      <input type="password" name="password" /><br/>
+      <input type="submit" value="Save">
+    </form>
+  </script>
   <body>
+    <div id="flash"></div>
+    <h1 id="pagetitle"></h1>
     <div id="container">
       If this text does not go away then your browser does not support javascript.
     </div>
