@@ -143,8 +143,10 @@ Then edit the web/settings.js file to at least change the admin password.
 * Add upstart script
 * Make dumpscribe calculate and write timestamp offset to disk when run
 ** Needs to get the current time from peninfo, calc offset, and write
-* Add support for deleting files from the pen (need to reverse-engineer)
+* Add support for deleting audio files from the pen (need to reverse-engineer)
 * Get rid of compile warnings related to xmlChar vs. char
+* Get rid of memory leaks
+** It looks like the obex downloads allocates memory that is never freed?
 
 # Bugs and limitations
 

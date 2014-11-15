@@ -164,7 +164,12 @@ void obex_event(obex_t* hdl, obex_object_t* obj, int mode, int event, int obex_c
           return;
         }
     } else if (obex_rsp != OBEX_RSP_SUCCESS && obex_rsp != OBEX_RSP_CONTINUE) {
-      fprintf(stderr, "Unrecognized OBEX event encountered.\n");
+      if(obex_rsp == OBEX_RSP_NOT_FOUND) {
+        fprintf(stderr, "OBEX object not found.\n");
+      } else {
+        fprintf(stderr, "Unrecognized OBEX event encountered: %d.\n", obex_rsp);
+        fprintf(stderr, "See http://dev.zuckschwerdt.org/openobex/doxygen/html/obex__const_8h.html for more info\n");
+      }
       obex_requestdone(state, hdl, obj, obex_cmd, obex_rsp);
       return;
     } else {
@@ -223,47 +228,6 @@ struct libusb_device_handle *find_smartpen() {
     debug("exiting find_smartpen() returning NULL\n");
     return NULL;
 }
-
-int delete_named_object(obex_t *handle, const char* name) {
-  // reference: http://dev.zuckschwerdt.org/openobex/doxygen/
-  struct obex_state *state;
-  obex_object_t *obj;
-  obex_headerdata_t hd;
-  int name_size, i;
-  glong nnum;
-  debug("getting obex state...\n");
-  state = (struct obex_state*) OBEX_GetUserData(handle);
-  OBEX_SetTransportMTU(handle, OBEX_MAXIMUM_MTU, OBEX_MAXIMUM_MTU);
-  debug("creating object\n");
-  obj = OBEX_ObjectNew(handle, OBEX_CMD_PUT);
-  if(obj== NULL) {
-    return 1;
-  }
-
-  debug("Setting connection id header to state->connid (%d)\n", state->connid);
-  hd.bq4 = state->connid;
-  debug("Adding connection id header...\n");
-  OBEX_ObjectAddHeader(handle, obj, OBEX_HDR_CONNECTION,
-                       hd, 4, OBEX_FL_FIT_ONE_PACKET);
-  debug("Adding unicode name header...\n");
-  // Add unicode name header
-  hd.bs = (unsigned char *) g_utf8_to_utf16(name, strlen(name), NULL, &nnum, NULL);
-  for (i=0; i<nnum; i++) {
-    uint16_t *wchar = (uint16_t*)&hd.bs[i*2];
-    *wchar = ntohs(*wchar);
-  }
-  name_size = (nnum+1) * sizeof(uint16_t);
-  debug("name size: %d\n", name_size);
-  OBEX_ObjectAddHeader(handle, obj, OBEX_HDR_NAME, hd, name_size, OBEX_FL_FIT_ONE_PACKET);
-
-  debug("Sending request...\n");
-  if(OBEX_Request(handle, obj)) {
-    fprintf(stderr, "OBEX request failed.\n");
-    return 1;
-  }
-  return 0;
-}
-
 
 const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
     debug("attempting to retrieve named object \"%s\"...\n", name);
@@ -595,12 +559,23 @@ int get_audio(obex_t *handle, long long int start_time, const char* outfile, con
   return get_archive(handle, name, outfile, outdir);
 }
 
-int get_written_page(obex_t *handle, const char* object_name, long long int start_time, const char* outfile, const char* outdir) {
+int get_written_page(obex_t *handle, const char* object_name, long long int start_time, const char* outfile, const char* outdir, int delete_after_get) {
 	char name[256];
+  uint32_t len;
+  int ret;
 
   snprintf(name, sizeof(name), "lspdata?name=%s&start_time=%lld", object_name, start_time);
 
-  return get_archive(handle, name, outfile, outdir);
+  ret = get_archive(handle, name, outfile, outdir);
+
+  // if archive was extracted successfully, and delete_after_get is set
+  // tell pen to delete the notebook
+  // (note: this does not make the pen delete the audio for the notebook)
+  if((ret == 0) && (delete_after_get > 0)) {
+    delete_notebook(handle, name, &len);
+  }
+
+  return ret;
 }
 
 // Get a list of written pages created since start_time
@@ -611,17 +586,15 @@ const char* get_written_page_list(obex_t* handle, long long int start_time, uint
     return get_named_object(handle, name, len);
 }
 
-// TODO does this return anything useful? maybe return void and remove len argument 
-// TODO verify that this works
-const char* delete_notebook(obex_t* handle, char* doc_id, uint32_t* len) {
+void delete_notebook(obex_t* handle, char* doc_id, uint32_t* len) {
   char name[256];
 
-  snprintf(name, sizeof(name), "lspcommand?name=Paper.Replay&command=retire?docId=%s?copy=0?deleteSession=true", doc_id);
+  snprintf(name, sizeof(name), "lspcommand?name=%s&command=retire", doc_id);
   return get_named_object(handle, name, len);
 }
 
 // Download all written pages
-int get_all_written_pages(obex_t* handle, long long int start_time, const char* outdir) {
+int get_all_written_pages(obex_t* handle, long long int start_time, const char* outdir, int delete_after_get) {
 
   uint32_t list_len;
   xmlDocPtr doc;
@@ -701,7 +674,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
     }
     debug("found notebook guid %s now retrievieving notebook pages\n", val);
 
-    get_written_page(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip", outdir);
+    get_written_page(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip", outdir, delete_after_get);
 
     // TODO check if get_written_page succeeded (and ensure that it actually reports failure on failure)
     // Then if it did succeed, and if the proper command line argument was given, call delete_notebook
@@ -719,7 +692,11 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
 
 
 void usage(const char* cmd_name) {
-  printf("Usage: %s [-d] output_dir\n", cmd_name);
+  printf("Usage: %s [-d] [-c] output_dir\n", cmd_name);
+  printf("\n");
+  printf("  -d: Enable debug output.\n");
+  printf("  -c: Delete files from pen after successful download.\n");
+  printf("\n");
 }
 
 int main(int argc, char** argv) {
@@ -731,6 +708,7 @@ int main(int argc, char** argv) {
   uint32_t len;
   int extra_args = 0;
   char* output_dir;
+  int clean_mode = 0;
   
   if(argc < 1) {
     usage("dumpscribe");
@@ -742,6 +720,9 @@ int main(int argc, char** argv) {
       case 'h': 
         usage(argv[0]);
         return 0;
+        break;
+      case 'c':
+        clean_mode = 1;
         break;
       case 'd':
         debug_mode = 1;
@@ -786,8 +767,8 @@ int main(int argc, char** argv) {
 
   printf("Connected to smartpen!\n");
 
-  ret = get_all_written_pages(handle, 0, output_dir);
-  if(ret) {
+  ret = get_all_written_pages(handle, 0, output_dir, clean_mode);
+ if(ret) {
     fprintf(stderr, "Failed to get list of written pages from smartpen.\n");
     return 1;
   }
@@ -797,8 +778,12 @@ int main(int argc, char** argv) {
     fprintf(stderr, "Failed to download audio from smartpen.\n");
     return 1;
   }
-  
 
+  /*
+  char* lol;
+  lol = delete_notebook(handle, "0x0bf11a726d11f3f3", &len);
+  printf("delete notebook output ( %lld ):\n", len);
+  */
 
   // TODO figure out how to delete audio
 
