@@ -5,6 +5,7 @@
     <link rel="stylesheet" type="text/css" href="css/main.css">
     <script type="text/javascript" src="js/jquery-2.1.1.min.js"></script>
     <script type="text/javascript" src="js/jquery.timeago.js"></script>
+    <script type="text/javascript" src="js/moment.js"></script>
     <script type="text/javascript" src="js/underscore-min.js"></script>
     <script type="text/javascript" src="js/grapnel.min.js"></script>
     <script type="text/javascript" src="js/index.js"></script>
@@ -15,18 +16,25 @@
       <h3><%= name %></h3>
       <ul>
         <li>Last updated: <%- $.timeago(date) %></li>
-        <li>Pages: <%- pages.length %></li>
+        <li>Pages: <%- pages.length + 1 %></li>
         <li>Audio files: <%- audio.length %></li>
       </ul>
     </div>
   </script>
   <script id="page-template" type="text/templatedata">
     <div class="page">
-      <a href="<%- pdf %>">
-        <img src="<%- thumbnail %>" />
+      <a href="<%- encodeURI(pdf) %>">
+        <img src="<%- encodeURI(thumbnail) %>" />
       </a>
-      <div class="number-caption">Page <%- number %></div>
+      <div class="number-caption">Page <%- number + 1 %></div>
       <div class="date-caption">Last updated <%- $.timeago(date) %></div>
+      <% if(recordings && (recordings.length > 0)) { %>
+        <ul>
+          <% _.each(recordings, function(recording) { %>
+            <li><a href="<%- encodeURI(recording.path) %>">Recording from <%- $.timeago(recording.date) %> (<%- moment(recording.date).format("MMMM Do YYYY, h:mm:ss a") %>) - <%- moment.unix(recording.duration).utc().format("H:m:s") %> duration</a></li>
+          <% }); %>
+        </ul>        
+      <% } %>
     </div>
   </script>
   <script id="change-name-template" type="text/templatedata">

@@ -87,6 +87,24 @@ if args.notebook:
     if not merger:
         sys.exit("No pdf merger found. Please install pdftk or run this command without the --notebook flag.")
 
+# get audio duration in seconds 
+def get_audio_duration(in_file):
+    cmd = '%s -i "%s" 2>&1; echo "success"' % (encoder, in_file)
+    out = subprocess.check_output(cmd, shell=True)
+    m = re.search("Duration:\s+([\d:]+)", out)
+    if not m:
+        return None
+
+    try:
+        duration_str = m.group(1)
+        parts = duration_str.split(":")
+        duration = int(parts[0]) * 60 * 60 + int(parts[1]) * 60 + int(parts[2])
+    except:
+        print "duration failed :("
+        return None
+
+    return duration
+
 def convert_aac_to_ogg(in_file, out_file):
     sys.stdout.write("Transcoding audio file... ")
     cmd = '%s -i "%s" -acodec libvorbis "%s" > /dev/null 2>&1' % (encoder, in_file, out_file)
@@ -191,15 +209,20 @@ def copy_audio(audio_file):
     except:
         page_address = None
 
+    duration = get_audio_duration(audio_file);
+    if not duration:
+        duration = 0
+    filepost = "recording_" + timestr + "_" + str(duration)
+
     if page:
         dest_dir = os.path.join(outdir, 'notebook-' + page['notebook'])
         mkdir_p(dest_dir)
-        dest = os.path.join(dest_dir, 'page-' + str(page['number']) + "-recording_" + timestr)
+        dest = os.path.join(dest_dir, 'page-' + str(page['number']) + "-" + filepost)
 
     else:
         dest_dir = os.path.join(outdir, 'other_recordings')
         mkdir_p(dest_dir)
-        dest = os.path.join(dest_dir, 'recording_' + timestr)
+        dest = os.path.join(dest_dir, filepost)
 
     if args.keep_aac:
         dest += '.aac'

@@ -143,7 +143,6 @@ Then edit the web/settings.js file to at least change the admin password.
 * Add upstart script
 * Make dumpscribe calculate and write timestamp offset to disk when run
 ** Needs to get the current time from peninfo, calc offset, and write
-* Add command line arguments to dumpscribe
 * Add support for deleting files from the pen (need to reverse-engineer)
 * Get rid of compile warnings related to xmlChar vs. char
 

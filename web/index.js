@@ -89,17 +89,19 @@ function getNotebookPages(id, callback) {
                 
             // for audio files
             } else if(nbfile.match(/\.ogg$/) || nbfile.match(/\.aac$/)) {
-                m = nbfile.match(/page-(\d+)/);
+                m = nbfile.match(/page-(\d+)-.*(\d+)\./);
                 if(!m) return fcallback();
                 number = parseInt(m[1]);
+                duration = parseInt(m[2]);
                 
                 fs.stat(path.join(nbDir, nbfile), function(err, stats) {
                     if(err) return fcallback(err);
 
-                    // TODO add length in seconds
                     var recording = {
+                        path: pendataMount + '/' + nbDirname + '/' + nbfile,
                         date: stats.ctime,
-                        size: stats.size
+                        size: stats.size,
+                        duration: duration
                     };
 
                     if(!pages[number]) {
