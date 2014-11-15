@@ -16,6 +16,8 @@
 #include <libxml/xpath.h>
 #include <libxml/xpathInternals.h>
 
+#define MAX_PATH_LENGTH (65536)
+
 #define LS_VENDOR_ID 0x1cfb //LiveScribe Vendor ID
 inline int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } // LiveScribe Pulse(TM) Smartpen
 inline int is_ls_echo(unsigned int c) { return c == 0x1030 || c == 0x1032; } // LiveScribe Echo(TM) Smartpen
@@ -30,54 +32,6 @@ struct obex_state {
 };
 
 int debug_mode = 0;
-
-
-// concatenate file paths
-// from https://www.gnu.org/software/libc/manual/html_node/Copying-and-Concatenation.html#Copying-and-Concatenation
-char *concat(const char *str, ...)  {
-  va_list ap;
-  size_t allocated = 100;
-  char *result = (char *) malloc(allocated);
-
-  if(result != NULL) {
-    char *newp;
-    char *wp;
-    const char *s;
-    
-    va_start(ap, str);
-    
-    wp = result;
-    for(s = str; s != NULL; s = va_arg(ap, const char *)) {
-      size_t len = strlen(s);
-      
-      // Resize the allocated memory if necessary.
-      if(wp + len + 1 > result + allocated) {
-        allocated = (allocated + len) * 2;
-        newp = (char *) realloc(result, allocated);
-        if(newp == NULL) {
-          free(result);
-          return NULL;
-        }
-        wp = newp + (wp - result);
-        result = newp;
-      }
-      
-      wp = mempcpy(wp, s, len);
-    }
-    
-    // Terminate the result string.
-    *wp++ = '\0';
-    
-    // Resize memory to the optimal size.
-    newp = realloc(result, wp - result);
-    if (newp != NULL)
-      result = newp;
-    
-    va_end(ap);
-  }
-  
-  return result;
-}
 
 void debug(const char* format, ... ) {
   if(debug_mode) {
@@ -549,8 +503,18 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile, const ch
 }
 
 
+// delete audio for specific notebook from pen
+void delete_notebook_audio(obex_t* handle, char* doc_id, uint32_t* len) {
+  char name[256];
+        
+  snprintf(name, sizeof(name), "lspcommand?name=Paper Replay&command=retire?docId=%s?copy=0?deleteSession=true", doc_id);
+  return get_named_object(handle, name, &len);
+}
+
+// download all audio from pen
 int get_audio(obex_t *handle, long long int start_time, const char* outfile, const char* outdir) {
 	char name[256];
+
 
   printf("Downloading audio.\n");
 
@@ -559,7 +523,14 @@ int get_audio(obex_t *handle, long long int start_time, const char* outfile, con
   return get_archive(handle, name, outfile, outdir);
 }
 
-int get_written_page(obex_t *handle, const char* object_name, long long int start_time, const char* outfile, const char* outdir, int delete_after_get) {
+void delete_notebook_pages(obex_t* handle, char* doc_id, uint32_t* len) {
+  char name[256];
+
+  snprintf(name, sizeof(name), "lspcommand?name=%s&command=retire", doc_id);
+  return get_named_object(handle, name, len);
+}
+
+int get_notebook_pages(obex_t *handle, const char* object_name, long long int start_time, const char* outfile, const char* outdir, int delete_after_get) {
 	char name[256];
   uint32_t len;
   int ret;
@@ -570,13 +541,157 @@ int get_written_page(obex_t *handle, const char* object_name, long long int star
 
   // if archive was extracted successfully, and delete_after_get is set
   // tell pen to delete the notebook
-  // (note: this does not make the pen delete the audio for the notebook)
   if((ret == 0) && (delete_after_get > 0)) {
-    delete_notebook(handle, name, &len);
+    delete_notebook_pages(handle, name, &len);
+    delete_notebook_audio(handle, name, &len);
   }
 
   return ret;
 }
+
+// Get pen information xml
+const char* get_peninfo(obex_t* handle, uint32_t* len) {
+  const char* peninfo = get_named_object(handle, "peninfo", len);
+  return peninfo;
+}
+
+// get system time in milliseconds
+// NOTICE: This function returns < 0 on failure
+long long int get_systemtime() {
+  struct timespec t;
+  int ret;
+
+  ret = clock_gettime(CLOCK_REALTIME, &t);
+  if(ret) {
+    return -1;
+  }
+  
+  return ((t.tv_sec * 1000) + (t.tv_nsec / 1000000));
+}
+
+// Pen time is reported in milliseconds but it is not clear
+// what it is counting relative to.
+// it is certainly not unix epoch time or anything obvious.
+// It is not clear how to get the full datetime from the pen.
+// NOTICE: This function returns < 0 on failure
+long long int get_pentime(obex_t* handle) {
+  long long int pentime = -1;
+  uint32_t len;
+  char* peninfo;
+  xmlDocPtr doc;
+  xmlXPathContextPtr xpathCtx; 
+  xmlXPathObjectPtr xpathObj; 
+  xmlNodeSetPtr nodes;
+  xmlChar* val;
+  int size;
+  int i;
+
+  const xmlChar* xpathExpr = BAD_CAST "/xml/peninfo/time";
+
+  peninfo = get_peninfo(handle, &len);
+
+  xmlInitParser();
+
+  doc = xmlParseMemory(peninfo, len);
+  if(!doc) {
+    fprintf(stderr, "Failed to parse list of written pages.\n");
+    return -1;
+  }
+
+  xpathCtx = xmlXPathNewContext(doc);
+  if(!xpathCtx) {
+    fprintf(stderr, "Failed to create XPath context.\n");
+    xmlFreeDoc(doc);
+    xmlCleanupParser();
+    return -1;
+  }
+
+  xpathObj = xmlXPathEvalExpression(xpathExpr, xpathCtx);
+  if(!xpathObj) {
+    fprintf(stderr, "Failed to evaluate XPath expression.\n");
+    xmlXPathFreeContext(xpathCtx);
+    xmlFreeDoc(doc);
+    xmlCleanupParser();
+    return -1;
+  }
+
+  nodes = xpathObj->nodesetval;
+  size = nodes->nodeNr;  
+  if(size <= 0) {
+    fprintf(stderr, "Pen info did not contain time value.\n");
+    return -1;
+  }
+
+  for(i = 0; i < size; ++i) {
+    if(nodes->nodeTab[i]->type != XML_ELEMENT_NODE) {
+      continue;
+    }
+    val = xmlGetProp(nodes->nodeTab[i], BAD_CAST "absolute");
+    if(val) {
+      pentime = atoll((const char*) val);
+      xmlFree(val);
+      break;
+    }
+  }
+
+  xmlXPathFreeObject(xpathObj);
+  xmlXPathFreeContext(xpathCtx);
+  xmlFreeDoc(doc);
+  xmlCleanupParser();
+
+  return pentime;
+}
+
+// get difference between pen time and system time
+long long int get_time_offset(obex_t* handle) {
+  long long int pentime;
+  long long int systime;
+
+  pentime = get_pentime(handle);
+  if(pentime < 0) {
+    return -1;
+  }
+
+  systime = get_systemtime(handle);
+  if(systime < 0) {
+    return -1;
+  }
+
+  return systime - pentime;
+}
+
+// write time offset to output dir
+int write_time_offset(obex_t* handle, const char* outdir) {
+  FILE* f;
+  long long int offset;
+  int written;
+  char filepath[MAX_PATH_LENGTH];
+  
+  offset = get_time_offset(handle);
+  if(offset < 0) {
+    fprintf(stderr, "Failed to get time offset.\n");
+    return 1;
+  }
+
+  snprintf(filepath, MAX_PATH_LENGTH, "%s/time_offset", outdir);
+  
+  f = fopen(filepath, "w");
+  if(!f) {
+    fprintf(stderr, "Failed to open time_offset for writing.\n");
+    return 1;
+  }
+
+  written = fprintf(f, "%lld", offset);
+  if(written <= 0) { 
+    fprintf(stderr, "Failed to write time_offset.\n");
+    return 1;
+  }
+
+  fclose(f);
+  
+  return 0;
+}
+
 
 // Get a list of written pages created since start_time
 const char* get_written_page_list(obex_t* handle, long long int start_time, uint32_t* len) {
@@ -584,13 +699,6 @@ const char* get_written_page_list(obex_t* handle, long long int start_time, uint
 
     snprintf(name, sizeof(name), "changelist?start_time=%lld", start_time);
     return get_named_object(handle, name, len);
-}
-
-void delete_notebook(obex_t* handle, char* doc_id, uint32_t* len) {
-  char name[256];
-
-  snprintf(name, sizeof(name), "lspcommand?name=%s&command=retire", doc_id);
-  return get_named_object(handle, name, len);
 }
 
 // Download all written pages
@@ -605,7 +713,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
   FILE* pagelistfile;
   int i, size;
   ssize_t written;
-  char* filepath;
+  char filepath[MAX_PATH_LENGTH];
 
   printf("Downloading written notes.\n");
 
@@ -618,9 +726,8 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
     return 1;
   }
 
-  filepath = concat(outdir, "/", "written_page_list.xml");
+  snprintf(filepath, MAX_PATH_LENGTH, "%s/written_page_list.xml", outdir);
   
-  // TODO get this dir from command line argument
   pagelistfile = fopen(filepath, "w");
   if(!pagelistfile) {
     fprintf(stderr, "Failed to open written_page_list.xml for writing.\n");
@@ -628,21 +735,22 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
   }
 
   written = fwrite(list, list_len, 1, pagelistfile);
-  if(!written) { 
+  if(written <= 0) { 
     fprintf(stderr, "Failed to write written_page_list.xml.\n");
     return 1;
   }
 
   fclose(pagelistfile);
-  free(filepath);
 
-  debug("Written page list:\n%s\n", list);
+  // Cannot be sure this is a null terminated string so not safe to use debug()
+  //  debug("Written page list:\n%s\n", list);
 
   xmlInitParser();
 
   doc = xmlParseMemory(list, list_len);
   if(!doc) {
     fprintf(stderr, "Failed to parse list of written pages.\n");
+    xmlCleanupParser();
     return 1;
   }
 
@@ -650,6 +758,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
   if(!xpathCtx) {
     fprintf(stderr, "Failed to create XPath context.\n");
     xmlFreeDoc(doc);
+    xmlCleanupParser();
     return 1;    
   }
 
@@ -657,6 +766,8 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
   if(!xpathObj) {
     fprintf(stderr, "Failed to evaluate XPath expression.\n");
     xmlXPathFreeContext(xpathCtx);
+    xmlFreeDoc(doc);
+    xmlCleanupParser();
     return 1;
   }
   
@@ -674,10 +785,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
     }
     debug("found notebook guid %s now retrievieving notebook pages\n", val);
 
-    get_written_page(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip", outdir, delete_after_get);
-
-    // TODO check if get_written_page succeeded (and ensure that it actually reports failure on failure)
-    // Then if it did succeed, and if the proper command line argument was given, call delete_notebook
+    get_notebook_pages(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip", outdir, delete_after_get);
 
     xmlFree(val);
   }
@@ -705,7 +813,6 @@ int main(int argc, char** argv) {
   struct libusb_device_handle* dev;
   const char* audio_outfile = "/tmp/dumpscribe_audio.zip";
   int ret, opt, i;
-  uint32_t len;
   int extra_args = 0;
   char* output_dir;
   int clean_mode = 0;
@@ -767,44 +874,23 @@ int main(int argc, char** argv) {
 
   printf("Connected to smartpen!\n");
 
-  ret = get_all_written_pages(handle, 0, output_dir, clean_mode);
- if(ret) {
-    fprintf(stderr, "Failed to get list of written pages from smartpen.\n");
-    return 1;
-  }
-
   ret = get_audio(handle, 0, audio_outfile, output_dir);
   if(ret) {
     fprintf(stderr, "Failed to download audio from smartpen.\n");
     return 1;
   }
 
-  /*
-  char* lol;
-  lol = delete_notebook(handle, "0x0bf11a726d11f3f3", &len);
-  printf("delete notebook output ( %lld ):\n", len);
-  */
+  ret = get_all_written_pages(handle, 0, output_dir, clean_mode);
+  if(ret) {
+    fprintf(stderr, "Failed to get list of written pages from smartpen.\n");
+    return 1;
+  }
 
-  // TODO figure out how to delete audio
-
-  // list sessions
-  /*
-  char* sessions = get_named_object(handle, "lspcommand?name=Paper Replay&command=listSessions", &len);
-  printf("List of sessions: %s\n", sessions);
-  */
-
-  /*
-
-const char* Smartpen::getPenletList() {
-    const char *name = "penletlist";
-    int len;
-
-    return getNamedObject(name, &len);
-}
-
-  */
-
-  //pencommand?action=flushfs
+  ret = write_time_offset(handle, output_dir);
+  if(ret) {
+    fprintf(stderr, "Failed to write time offset.\n");
+    return 1;
+  }
 
   return 0;
 }
