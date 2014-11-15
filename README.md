@@ -12,9 +12,11 @@ The dumpscribe command downloads and extracts all relevant info from the smartpe
 ```
 ./dumpscribe [-d] output_dir
 
-Where output_dir is a directory where the downloaded data will be saved.
-The -d flag enables more verbose output which is useful for debugging.
+  -d: Enable debug output.
+  -c: Delete files from pen after successful download.
 ```
+
+Where output_dir is a directory where the downloaded data will be saved.
 
 # unmuddle.py
 
@@ -23,7 +25,7 @@ The unmuddle.py command converts written notes to PDF, converts audio data to Og
 ## Usage
 
 ```
-Usage: unmuddle.py [-h] [--aac] [--thumb] [--thumbsize THUMBSIZE]
+Usage: unmuddle.py [-h] [--aac] [--notebook] [--thumb] [--thumbsize THUMBSIZE]
                                input_dir output_dir
 
 Convert file formats and organize output from dumpscribe.
@@ -35,7 +37,11 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --aac                 Don't convert aac audio files to ogg vorbis.
-  --thumb               Generate png thumbnails of pdfs.
+                        (conversion required either ffmpeg or avconv)
+  --notebook            Additionally create one pdf per notebook with all
+                        notebook pages (requires pdftk).
+  --thumb               Generate png thumbnails of pdfs (requires either
+                        ImageMagick or GraphicsMagick).
   --thumbsize THUMBSIZE
                         Set thumbnail maximum dimension.
 ```
@@ -140,10 +146,8 @@ Then edit the web/settings.js file to at least change the admin password.
 
 # TODO
 
+* Make unmuddle.py actually use the time offset written by dumpscribe
 * Add upstart script
-* Make dumpscribe calculate and write timestamp offset to disk when run
-** Needs to get the current time from peninfo, calc offset, and write
-* Add support for deleting audio files from the pen (need to reverse-engineer)
 * Get rid of compile warnings related to xmlChar vs. char
 * Get rid of memory leaks
 ** It looks like the obex downloads allocates memory that is never freed?
