@@ -642,7 +642,10 @@ long long int get_pentime(obex_t* handle) {
   return pentime;
 }
 
-// get difference between pen time and system time
+// Get difference between pen time and system time.
+// This is important since pen time is relative to some
+// weird non-standard and unknown reference point.
+// It is not just milliseconds from January 1st 1970 :(
 long long int get_time_offset(obex_t* handle) {
   long long int pentime;
   long long int systime;

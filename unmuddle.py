@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 
 from stf2pdf import STF2PDF
 
-time_offset = 1406057005809 # TODO read this from file
+time_offset = 0 # The offset between pen time and system time
 
 encoder = None # The command for the audio transcoder
 thumbnailer = None # The command for the thumbnail generator
@@ -247,6 +247,16 @@ def sort_pdf_paths_by_page_number(a, b):
     return x - y
 
 ### function definitions above this line ###
+
+
+
+# Get difference between pen time and system time.
+# This is important since pen time is relative to some
+# weird non-standard and unknown reference point.
+# It is not just milliseconds from January 1st 1970 :(
+offsetFile = open(os.path.join(indir, "time_offset"), "r")
+time_offset = int(offsetFile.read())
+offsetFile.close()
 
 # Parse page metadata from xml into a dict
 sys.stdout.write("Parsing page list... ")

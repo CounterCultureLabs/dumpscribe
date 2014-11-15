@@ -146,10 +146,9 @@ Then edit the web/settings.js file to at least change the admin password.
 
 # TODO
 
-* Make unmuddle.py actually use the time offset written by dumpscribe
 * Add upstart script
-* Get rid of compile warnings related to xmlChar vs. char
-* Get rid of memory leaks
+* Get rid of dumpscribe compile warnings related to xmlChar vs. char
+* Get rid of dumpscribe memory leaks
 ** It looks like the obex downloads allocates memory that is never freed?
 
 # Bugs and limitations
