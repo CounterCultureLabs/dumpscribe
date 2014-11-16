@@ -65,7 +65,7 @@ function init() {
             var header = 'Notebook: '+name+'<a class="change-name" href="'+change_name_url+'">'+change_name_text+'</a>';
             $('#pagetitle').html(header);
 
-            var menu = '<p><a href="'+encodeURI(notebook.pdf)+'">Full notebook PDF</a></p>';
+            var menu = '<p><a href="'+encodeURI(notebook.pdf)+'">Download complete notebook PDF</a></p>';
             if(order == 'date') {
                 menu += '<p class="order">Order by last updated | <a href="#notebook/'+notebook.id+'/pagenumber">Order by page number</a>';
             } else {

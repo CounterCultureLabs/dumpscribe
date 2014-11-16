@@ -99,7 +99,7 @@ function getNotebookPages(id, callback) {
 
                     var recording = {
                         path: pendataMount + '/' + nbDirname + '/' + nbfile,
-                        date: stats.ctime,
+                        date: stats.mtime,
                         size: stats.size,
                         duration: duration
                     };
