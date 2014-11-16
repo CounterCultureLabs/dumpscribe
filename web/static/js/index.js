@@ -50,7 +50,7 @@ function init() {
         if(parts.length > 1) {
             order = parts[1];
         }
-        
+
         $.getJSON('notebook/'+notebook_id+'?order='+order, function(val) {
             var notebook = val.data;
             var pages = notebook.pages;

@@ -82,7 +82,7 @@ function getNotebookPages(id, callback) {
                     pages[number].pdf = pendataMount + '/' + nbDirname + '/' + nbfile;
                     pages[number].thumbnail = pendataMount + '/' + nbDirname + '/thumbnails/' + nbfile + '.png';
                     pages[number].number = number;
-                    pages[number].date = stats.ctime;
+                    pages[number].date = stats.mtime;
                     pages[number].size = stats.size;
                     fcallback();
                 });
@@ -234,7 +234,6 @@ function orderPages(pages, order_by) {
     return arr;
 }
 
-// TODO implement ordering by page number or last modified time
 app.use('/notebook/:id', function(req, res, next){
     var id = req.params.id;
     var order = req.query.order || 'pagenumber'; // can also be 'date'
