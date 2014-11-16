@@ -14,7 +14,8 @@ function hide_flash() {
 function init() {
 
     router.get('', function(req){
-        hide_flash()
+        hide_flash();
+        $('#extra').html('');
         $.getJSON('notebooks', function(val) {
             var notebooks = val.data;
             var tmpl = _.template($('#notebook-summary-template').html());
@@ -41,7 +42,8 @@ function init() {
     });
     
     router.get('notebook/*', function(req) {
-        hide_flash()
+        hide_flash();
+        $('#extra').html('');
         $.getJSON('notebook/'+req.params[0], function(val) {
             var notebook = val.data;
             var pages = notebook.pages;
@@ -55,6 +57,8 @@ function init() {
             var name = notebook.name || notebook.id;
             var header = 'Notebook: '+name+'<a class="change-name" href="'+change_name_url+'">'+change_name_text+'</a>';
             $('#pagetitle').html(header);
+
+            $('#extra').html('<p><a href="'+encodeURI(notebook.pdf)+'">Full notebook PDF</a></p>');
 
             var html = '';
             var i;
@@ -73,7 +77,8 @@ function init() {
 
 
     router.get('notebook-change-name/*', function(req) {
-        hide_flash()
+        hide_flash();
+        $('#extra').html('');
         var notebook_id = req.params[0];
         if(!notebook_id) {
             $('#pagetitle').html("Error");

@@ -20,7 +20,7 @@
 
 #define LS_VENDOR_ID 0x1cfb //LiveScribe Vendor ID
 inline int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } // LiveScribe Pulse(TM) Smartpen
-inline int is_ls_echo(unsigned int c) { return c == 0x1030 || c == 0x1032; } // LiveScribe Echo(TM) Smartpen
+inline int is_ls_echo(unsigned int c) { return (c == 0x1030 || c == 0x1032); } // LiveScribe Echo(TM) Smartpen
 
 struct obex_state {
     obex_t *handle;
@@ -215,7 +215,7 @@ const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
     OBEX_ObjectAddHeader(handle, obj, OBEX_HDR_NAME, hd, size, OBEX_FL_FIT_ONE_PACKET);
 
     if (OBEX_Request(handle, obj) < 0) {
-        OBEX_ObjectDelete(handle,obj);
+        OBEX_ObjectDelete(handle, obj);
         fprintf(stderr, "An error occured while OBEX retrieving an object. Returning null value.\n");
         return NULL;
     }
@@ -230,7 +230,6 @@ const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
     if (state->body) {
         *len = state->body_len;
         // causes segfault and I'm not sure it's ever needed
-        //        state->body[state->body_len] = '\0';
     } else {
         *len = 0;
     }

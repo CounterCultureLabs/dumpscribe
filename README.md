@@ -149,7 +149,8 @@ Then edit the web/settings.js file to at least change the admin password.
 * Add upstart script
 * Get rid of dumpscribe compile warnings related to xmlChar vs. char
 * Get rid of dumpscribe memory leaks
-** It looks like the obex downloads allocates memory that is never freed?
+** It looks like the obex downloads allocates memory that is only freed when the obex cleanup function is called (which disconnects).
+** Use Valgrind to check for memory leaks: http://www.cprogramming.com/debugging/valgrind.html
 
 # Bugs and limitations
 

@@ -253,7 +253,8 @@ app.use('/notebook/:id', function(req, res, next){
             res.send(JSON.stringify({status: 'success', data: {
                 name: name,
                 id: id,
-                pages: pages
+                pages: pages,
+                pdf: pendataMount + '/notebook-' + id + '/all_pages.pdf'
             }}));
             next();
         });
