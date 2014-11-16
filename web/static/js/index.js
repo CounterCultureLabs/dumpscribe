@@ -44,7 +44,14 @@ function init() {
     router.get('notebook/*', function(req) {
         hide_flash();
         $('#extra').html('');
-        $.getJSON('notebook/'+req.params[0], function(val) {
+        var order = 'date';
+        var parts = req.params[0].split('/');
+        var notebook_id = parts[0];
+        if(parts.length > 1) {
+            order = parts[1];
+        }
+        
+        $.getJSON('notebook/'+notebook_id+'?order='+order, function(val) {
             var notebook = val.data;
             var pages = notebook.pages;
             var tmpl = _.template($('#page-template').html());
@@ -58,7 +65,14 @@ function init() {
             var header = 'Notebook: '+name+'<a class="change-name" href="'+change_name_url+'">'+change_name_text+'</a>';
             $('#pagetitle').html(header);
 
-            $('#extra').html('<p><a href="'+encodeURI(notebook.pdf)+'">Full notebook PDF</a></p>');
+            var menu = '<p><a href="'+encodeURI(notebook.pdf)+'">Full notebook PDF</a></p>';
+            if(order == 'date') {
+                menu += '<p class="order">Order by last updated | <a href="#notebook/'+notebook.id+'/pagenumber">Order by page number</a>';
+            } else {
+                menu += '<p class="order"><a href="#notebook/'+notebook.id+'/date">Order by last updated</a> | Order by page number';
+            }
+
+            $('#extra').html(menu);
 
             var html = '';
             var i;
