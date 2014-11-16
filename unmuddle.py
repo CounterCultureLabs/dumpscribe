@@ -173,12 +173,9 @@ def copy_audio(audio_file):
     f.read(16)
     time_raw = f.read(8)
     timestamp = struct.unpack(">Q", time_raw)[0]
-    print "pre " + str(timestamp)
     timestamp = pentime_to_unixtime(timestamp)
-    print "post " + str(timestamp)
     time = datetime.datetime.fromtimestamp(timestamp)
     timestr =  time.strftime('%Y-%m-%d_%H:%M')
-    print timestr
     f.close()
 
     # Attempt to get page address of first associated page (if any)
