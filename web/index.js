@@ -151,13 +151,16 @@ function getNotebookSummary(basePath, nbdirs, callback) {
 
                 async.eachSeries(nbfiles, function(nbfile, fcallback) {
                     if(nbfile.match(/\.pdf$/)) {
+                        if(nbfile == 'all_pages.pdf') {
+                            return fcallback();
+                        }
                         data[nbdir].pages.push(nbfile);
 
                         fs.stat(path.join(nbpath,  nbfile), function(err, stats) {
                             if(err) return fcallback(err);
 
-                            if(!data[nbdir].date || (stats.ctime > data[nbdir].date)) {
-                                data[nbdir].date = stats.ctime;
+                            if(!data[nbdir].date || (stats.mtime > data[nbdir].date)) {
+                                data[nbdir].date = stats.mtime;
                             }
                             fcallback();
                         });
