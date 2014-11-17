@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <openobex/obex.h>
 #include <string.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -556,16 +557,17 @@ const char* get_peninfo(obex_t* handle, uint32_t* len) {
 
 // get system time in milliseconds
 // NOTICE: This function returns < 0 on failure
-long long int get_systemtime() {
+int64_t get_systemtime() {
   struct timespec t;
   int ret;
 
   ret = clock_gettime(CLOCK_REALTIME, &t);
   if(ret) {
+    fprintf(stderr, "Failed to get system time: %s.\n", strerror(errno));
     return -1;
   }
-  
-  return ((t.tv_sec * 1000) + (t.tv_nsec / 1000000));
+
+  return (((int64_t) t.tv_sec) * 1000) + ((int64_t) t.tv_nsec) / 1000000;
 }
 
 // Pen time is reported in milliseconds but it is not clear
@@ -645,17 +647,19 @@ long long int get_pentime(obex_t* handle) {
 // This is important since pen time is relative to some
 // weird non-standard and unknown reference point.
 // It is not just milliseconds from January 1st 1970 :(
-long long int get_time_offset(obex_t* handle) {
-  long long int pentime;
-  long long int systime;
+int64_t get_time_offset(obex_t* handle) {
+  int64_t pentime;
+  int64_t systime;
 
   pentime = get_pentime(handle);
   if(pentime < 0) {
+    printf("failed to get pen time\n");
     return -1;
   }
 
   systime = get_systemtime(handle);
   if(systime < 0) {
+    printf("failed to get system time: %lld\n", systime);
     return -1;
   }
 
@@ -665,7 +669,7 @@ long long int get_time_offset(obex_t* handle) {
 // write time offset to output dir
 int write_time_offset(obex_t* handle, const char* outdir) {
   FILE* f;
-  long long int offset;
+  int64_t offset;
   int written;
   char filepath[MAX_PATH_LENGTH];
   
@@ -674,6 +678,8 @@ int write_time_offset(obex_t* handle, const char* outdir) {
     fprintf(stderr, "Failed to get time offset.\n");
     return 1;
   }
+
+  debug("Got time offset: %lld\n", offset);
 
   snprintf(filepath, MAX_PATH_LENGTH, "%s/time_offset", outdir);
   

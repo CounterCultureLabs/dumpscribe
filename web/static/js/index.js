@@ -125,7 +125,7 @@ function init() {
             }
 
             $.post('notebook-change-name/'+id, q, function(response) {
-                flash("Name successfully changed!");
+                flash("Name successfully changed! (redirecting...)");
                 setTimeout(function() {
                     window.location.href = '#notebook/'+notebook_id;
                 }, 3000);
