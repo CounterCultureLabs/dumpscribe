@@ -118,6 +118,12 @@ For usb_watcher.py the following packages are needed:
 sudo apt-get install python-gobject python-gudev
 ```
 
+Installing requirements for usb_watcher.py:
+
+```
+sudo apt-get install python-daemon
+```
+
 For the web app you need:
 
 ```
@@ -147,6 +153,7 @@ Then edit the web/settings.js file to at least change the admin password.
 # TODO
 
 * Add upstart script
+** Make the upstart script check if sd card is ext4 formatted and has pendump and unmuddled dirs. If not, format and make those dirs.
 * Get rid of dumpscribe memory leaks
 ** It looks like the obex downloads allocates memory that is only freed when the obex cleanup function is called (which disconnects).
 ** Use Valgrind to check for memory leaks: http://www.cprogramming.com/debugging/valgrind.html
