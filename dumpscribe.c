@@ -508,7 +508,7 @@ void delete_notebook_audio(obex_t* handle, char* doc_id, uint32_t* len) {
   char name[256];
         
   snprintf(name, sizeof(name), "lspcommand?name=Paper Replay&command=retire?docId=%s?copy=0?deleteSession=true", doc_id);
-  return get_named_object(handle, name, &len);
+  get_named_object(handle, name, len);
 }
 
 // download all audio from pen
