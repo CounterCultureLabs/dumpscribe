@@ -150,10 +150,99 @@ cp web/settings.js.example web/settings.js
 
 Then edit the web/settings.js file to at least change the admin password.
 
+# Running the web app as a daemon
+
+If you want to run the web app as a daemon, e.g. on a VPS so everyone can access it, then follow the notes in this section.
+
+## Making the web app auto-start 
+
+This section will show how to make the dumpscribe web app auto-start on boot. This method will also make the web app automatically restart if it crashes. 
+
+This section assumes that you have already gotten the dumpscribe web app running on the server by downloading it, installing requirements and editing the config file. See previous sections for instructions. 
+
+This section assumes that dumpscribe is located in /opt/dumpscribe
+
+First check if /usr/bin/node exists:
+
+```
+ls /usr/bin/node
+```
+
+If it doesn't, make a symlink (otherwise the upstart script won't run):
+
+```
+cd /usr/bin
+sudo ln -s nodejs node
+```
+
+Install "forever" (a node.js app that automatically auto-starts your process when it crashes):
+
+```
+sudo npm -g install forever
+```
+
+Add a user that will be running dumpscribe (just hit enter when asked questions):
+
+```
+sudo adduser dumpscribe --disabled-password
+```
+
+Make the dumpscribe dir owned by the dumpscribe user:
+
+```
+sudo chown -R dumpscribe.dumpscribe /opt/dumpscribe
+```
+
+Now copy the web app's upstart script:
+
+```
+sudo cp init_script/dumpscribe-web.conf /etc/init
+```
+
+Then, edit /etc/init/dumpscribe-web.conf setting the following lines to the correct values for your system:
+
+```
+env APPLICATION_WORKDIR="/opt/dumpscribe/web" # where the web app is located
+env UNMUDDLE_OUTPUT_DIR="/opt/dumpscribe/unmuddled" # where the output from unmuddle.py is located
+env PIDFILE="/opt/dumpscribe/dumpscribe.pid" # where to keep the pid file 
+env LOG="/opt/dumpscribe/dumpscribe.log" # where to write the log
+```
+
+Start the dumpscribe web app with:
+
+```
+sudo start dumpscribe-web
+```
+
+Check if it's really working by visiting the web app in the browser at http://your-server.org:3000/ or seeing if the dumpscribe process is runnning:
+
+```
+ps aux|grep index.js|grep -v grep
+```
+
+If the upstart script isn't working, uncomment the lines:
+
+```
+# exec 2>>/tmp/dumpscribe.fail.log
+# set -x
+```
+
+Then to see what's going wrong do:
+
+```
+sudo start dumpscribe-web
+less /tmp/dumpscribe.fail.log
+```
+
+## Using an apache or nginx reverse proxy
+
+Having users type a URL ending in :3000 is not very nice (and besides, some corporate firewall will block port 3000). Setting up a reverse proxy is the way to go.
+
+TODO writeme
+
 # TODO
 
-* Add upstart script
-** Make the upstart script check if sd card is ext4 formatted and has pendump and unmuddled dirs. If not, format and make those dirs.
+* Add init script for usb_watcher.py
 * Get rid of dumpscribe memory leaks
 ** It looks like the obex downloads allocates memory that is only freed when the obex cleanup function is called (which disconnects).
 ** Use Valgrind to check for memory leaks: http://www.cprogramming.com/debugging/valgrind.html
