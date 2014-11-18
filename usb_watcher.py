@@ -81,9 +81,11 @@ parser.add_argument('organized_output_dir', nargs=1,
 
 args = parser.parse_args()
 
+daemon_workdir = None
+
 if args.daemonize:
     print "Starting dumpscribe usb watcher and daemonizing"
-    with daemon.DaemonContext():
+    with daemon.DaemonContext(working_directory=args.dumpscribe_dir[0]):
         run()
 else:
     print "Starting dumpscribe usb watcher"

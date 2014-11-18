@@ -88,6 +88,20 @@ optional arguments:
   -c POST_COMMAND       Command to run after running unmuddle.py
 ```
 
+## Running as a daemon
+
+To run usb_watcher.py as a daemon that automatically starts on boot, first copy the the init script:
+
+```
+sudo cp init_scripts/dumpscribe-usb-watcher /etc/init.d/
+```
+
+Then make the script start on boot:
+
+```
+sudo update-rc.d dumpscribe-usb-watcher defaults
+```
+
 # dumpscribe-web
 
 A simple node.js web app that lets users browse the written and recorded notes.

@@ -1,0 +1,81 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          dumpscribe-usb-watcher
+# Required-Start:    $remote_fs
+# Required-Stop:     $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Runs dumpscribe when smartpens are connected to usb
+# Description: Runs dumpscribe when smartpens are connected to usb
+### END INIT INFO
+
+# The application working directory (cd into this before running application)
+APPLICATION_WORKDIR="/opt/dumpscribe"
+
+# Where dumpscribe puts its output
+DUMPSCRIBE_OUTPUT_DIR="/mnt/sd_card/pendump"
+
+# Where unmuddle.py puts its output
+UNMUDDLE_OUTPUT_DIR="/mnt/sd_card/unmuddled"
+
+# The command to run after running dumpscribe and unmuddle.py
+USER_COMMAND="rsync -HPSavx /mnt/sd_card/unmuddled/* dumpscribe@realvegancheese.org:/opt/dumpscribe/unmuddled/"
+
+# The application startup file path
+APPLICATION_PATH="/opt/dumpscribe/usb_watcher.py"
+
+# Process ID file paths.
+PIDFILE="/var/run/dumpscribe_usb_watcher.pid"
+
+. /lib/lsb/init-functions
+
+do_start () {
+    log_daemon_msg "Starting system $DAEMON_NAME daemon"
+
+    start-stop-daemon \
+        --start \
+        --background \
+        --pidfile $PIDFILE \
+        --chdir $APPLICATION_WORKDIR \
+        --make-pidfile \
+        --startas $APPLICATION_PATH \
+        -- \
+        $APPLICATION_WORKDIR $DUMPSCRIBE_OUTPUT_DIR $UNMUDDLE_OUTPUT_DIR -c "${USER_COMMAND}"
+
+    log_end_msg $?
+}
+do_stop () {
+    log_daemon_msg "Stopping system $DAEMON_NAME daemon"
+
+    start-stop-daemon \
+         --stop \
+         --pidfile $PIDFILE
+
+    rm $PIDFILE
+
+    log_end_msg $?
+}
+
+case "$1" in
+
+    start|stop)
+        do_${1}
+        ;;
+
+    restart|reload|force-reload)
+        do_stop
+        do_start
+        ;;
+
+    status)
+        status_of_proc "$DAEMON_NAME" "$DAEMON" && exit 0 || exit $?
+        ;;
+    *)
+        echo "Usage: /etc/init.d/$DAEMON_NAME {start|stop|restart|status}"
+        exit 1
+        ;;
+
+esac
+exit 0
+
