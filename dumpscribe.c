@@ -830,7 +830,7 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  while((opt = getopt(argc, argv, "hd")) != -1) {
+  while((opt = getopt(argc, argv, "hcd")) != -1) {
     switch (opt) {
       case 'h': 
         usage(argv[0]);

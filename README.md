@@ -288,6 +288,7 @@ Make sure the dumpscribe web app is running, open the url http://myhostname.org/
 
 # TODO
 
+* Automatic deletion from pen with -c is not working. Fix it.
 * Remove my ssh key from BBB and make BBB autogen new key in /root/.ssh/id_rsa* on first boot
 * Add init script for usb_watcher.py
 * Get rid of dumpscribe memory leaks

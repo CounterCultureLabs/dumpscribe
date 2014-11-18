@@ -232,7 +232,7 @@ function orderPages(pages, order_by) {
         arr.push(pages[key]);
     }
     arr.sort(function(a, b) {
-        return a[order_by] - b[order_by];
+        return b[order_by] - a[order_by];
     });
     return arr;
 }
