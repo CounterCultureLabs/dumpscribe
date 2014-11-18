@@ -234,23 +234,52 @@ sudo start dumpscribe-web
 less /tmp/dumpscribe.fail.log
 ```
 
-## Using an apache or nginx reverse proxy
+## Using an apache reverse proxy
 
 Having users type a URL ending in :3000 is not very nice (and besides, some corporate firewall will block port 3000). Setting up a reverse proxy is the way to go.
 
-TODO writeme
+If you haven't already, install a apache2:
+
+```
+sudo apt-get install apache2
+```
+
+Enable some necessary apache2 modules:
+
+```
+sudo a2enmod proxy
+sudo a2enmod proxy_http
+sudo a2enmod alias
+```
+
+Now edit the file apache virtual hosts file for the host where you want dumpscribe-web to appear. If you just now installed apache2, edit the file /etc/apache2/sites-enabled/000-default.conf. Assuming your hostname is myhostname.org and you want the dumpscribe web app to appear at "http://myhostname.org/labnotes" add the following lines immediately before the </VirtualHost> line:
+
+```
+RedirectMatch /labnotes$ http://myhostname.org/labnotes/
+ProxyRequests Off 
+ProxyPass /labnotes/ http://127.0.0.1:3000/
+ProxyPassReverse /labnotes/ http://127.0.0.1:3000/
+ProxyPreserveHost on 
+```
+
+Note that the trailing slashes are important.
+
+Now restart apache:
+
+```
+sudo /etc/init.d/apache2 restart
+```
+
+Make sure the dumpscribe web app is running, open the url http://myhostname.org/labnotes in a browser to verify that everything is working.
 
 # TODO
 
+* Remove my ssh key from BBB and make BBB autogen new key in /root/.ssh/id_rsa* on first boot
 * Add init script for usb_watcher.py
 * Get rid of dumpscribe memory leaks
 ** It looks like the obex downloads allocates memory that is only freed when the obex cleanup function is called (which disconnects).
 ** Use Valgrind to check for memory leaks: http://www.cprogramming.com/debugging/valgrind.html
 * Get rid of dumpscribe compile warnings related to xmlChar vs. char
-
-# Bugs and limitations
-
-* If two smartpens are connected at once, dumpscribe will segfault.
 
 # License and Copyright
 
