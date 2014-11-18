@@ -225,14 +225,18 @@ app.get('/notebooks', function(req, res){
 });
 
 
-function orderPages(pages, order_by) {
+function orderPages(pages, order_by, reverse) {
     var arr = [];
     var key;
     for(key in pages) {
         arr.push(pages[key]);
     }
     arr.sort(function(a, b) {
-        return b[order_by] - a[order_by];
+        if(reverse) {
+            return b[order_by] - a[order_by];
+        } else {
+            return a[order_by] - b[order_by];
+        }
     });
     return arr;
 }
@@ -245,7 +249,7 @@ app.use('/notebook/:id', function(req, res, next){
         if(err) return error(res, "Failed to get notebook page info: " + err);
 
         if(order == 'date') {
-            pages = orderPages(pages, 'date');
+            pages = orderPages(pages, 'date', true);
         } else {
             pages = orderPages(pages, 'number');
         }
