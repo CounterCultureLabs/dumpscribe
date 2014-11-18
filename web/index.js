@@ -247,7 +247,7 @@ app.use('/notebook/:id', function(req, res, next){
         if(order == 'date') {
             pages = orderPages(pages, 'date');
         } else {
-            pages = orderPages(pages, 'pagenumber');
+            pages = orderPages(pages, 'number');
         }
 
         getNotebookName(id, function(err, name) {
