@@ -21,7 +21,7 @@ def pen_detected():
     dump_dir = args.dumpscribe_output_dir[0]
     organized_dir = args.organized_output_dir[0]
     dumpscribe = os.path.join(args.dumpscribe_dir[0], 'dumpscribe')
-    dumpscribe_cmd = '"%s" "%s"' % (dumpscribe, dump_dir)
+    dumpscribe_cmd = '"%s" -c "%s"' % (dumpscribe, dump_dir)
     organize = os.path.join(args.dumpscribe_dir[0], 'unmuddle.py')
     organize_cmd = '"%s" --thumb "%s" "%s"' % (organize, dump_dir, organized_dir)
 

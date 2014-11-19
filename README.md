@@ -288,9 +288,8 @@ Make sure the dumpscribe web app is running, open the url http://myhostname.org/
 
 # TODO
 
-* Automatic deletion from pen with -c is not working. Fix it.
+* Add LED status indicators and control from the BBB
 * Remove my ssh key from BBB and make BBB autogen new key in /root/.ssh/id_rsa* on first boot
-* Add init script for usb_watcher.py
 * Get rid of dumpscribe memory leaks
 ** It looks like the obex downloads allocates memory that is only freed when the obex cleanup function is called (which disconnects).
 ** Use Valgrind to check for memory leaks: http://www.cprogramming.com/debugging/valgrind.html

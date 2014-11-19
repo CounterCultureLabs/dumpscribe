@@ -542,8 +542,8 @@ int get_notebook_pages(obex_t *handle, const char* object_name, long long int st
   // if archive was extracted successfully, and delete_after_get is set
   // tell pen to delete the notebook
   if((ret == 0) && (delete_after_get > 0)) {
-    delete_notebook_pages(handle, name, &len);
-    delete_notebook_audio(handle, name, &len);
+    delete_notebook_pages(handle, object_name, &len);
+    delete_notebook_audio(handle, object_name, &len);
   }
 
   return ret;
