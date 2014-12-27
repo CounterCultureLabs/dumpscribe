@@ -291,7 +291,7 @@ Make sure the dumpscribe web app is running, open the url http://myhostname.org/
 
 # TODO
 
-* Add LED status indicators and control from the BBB
+* Add stuff from led_control_remote.py to usb_watcher
 * Remove my ssh key from BBB and make BBB autogen new key in /root/.ssh/id_rsa* on first boot
 * Get rid of dumpscribe memory leaks
 ** It looks like the obex downloads allocates memory that is only freed when the obex cleanup function is called (which disconnects).
