@@ -24,6 +24,11 @@ def pen_detected():
     dumpscribe_cmd = '"%s" -c "%s"' % (dumpscribe, dump_dir)
     organize = os.path.join(args.dumpscribe_dir[0], 'unmuddle.py')
     organize_cmd = '"%s" --thumb "%s" "%s"' % (organize, dump_dir, organized_dir)
+    if args.cleanup_dir:
+        cleanup = os.path.join(args.dumpscribe_dir[0], 'cleanup.py')
+        cleanup_cmd = '"%s" "%s"' % (cleanup, args.cleanup_dir[0])
+    else:
+        cleanup_cmd = False
 
     ret = subprocess.call(dumpscribe_cmd, shell=True)
     if ret != 0:
@@ -32,8 +37,15 @@ def pen_detected():
 
     ret = subprocess.call(organize_cmd, shell=True)
     if ret != 0:
-        sys.stderr.write("unmuddle.py failed.\n")
+        sys.stderr.write("unmuddle failed.\n")
         return
+
+    if cleanup_cmd:
+        print "Cleaning up"
+        ret = subprocess.call(cleanup_cmd, shell=True)
+        if ret != 0:
+            sys.stderr.write("cleanup failed.\n")
+            return
 
     if args.post_command:
         print "Running user-supplied command:"
@@ -78,6 +90,9 @@ parser.add_argument('dumpscribe_output_dir', nargs=1,
                     help="Where dumpscribe should place its output.")
 parser.add_argument('organized_output_dir', nargs=1, 
                     help="Where unmuddle.py should place its output.")
+parser.add_argument('cleanup_dir', nargs='?',
+                    help="Optional directory to clean up if drive is more than 50 percent full.")
+
 
 args = parser.parse_args()
 
@@ -90,5 +105,6 @@ if args.daemonize:
 else:
     print "Starting dumpscribe usb watcher"
     run()
+
 
 

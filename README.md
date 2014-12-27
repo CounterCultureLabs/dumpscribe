@@ -1,5 +1,5 @@
 
-Downloads all written notes and recorded audio from a LiveScribe Pulse or Echo pen.
+Download all written notes and recorded audio from a LiveScribe Pulse or Echo pen. Convert the proprietary formats to open formats (pdf and ogg vorbis). Make the notes available online through a web app.
 
 This program has four parts:
  
@@ -69,9 +69,7 @@ The usb_watcher.py command waits for a smartpen to be connected to USB and then 
 ## Usage
 
 ```
-Usage: usb_watcher.py [-h] [-d] [-c POST_COMMAND]
-                      dumpscribe_dir dumpscribe_output_dir
-                      organized_output_dir
+Usage: usb_watcher.py [-h] [-d] [-c POST_COMMAND] dumpscribe_dir dumpscribe_output_dir organized_output_dir [cleanup_dir]
 
 Automatically run dumpscribe when LiveScribe pen is connected.
 
@@ -82,11 +80,16 @@ positional arguments:
                         Where dumpscribe should place its output.
   organized_output_dir  Where unmuddle should place its output.
 
+  cleanup_dir           Optional directory to clean up if drive is more than
+                        50 percent full.
+
 optional arguments:
   -h, --help            show this help message and exit
   -d                    Daemonize this process
   -c POST_COMMAND       Command to run after running unmuddle.py
 ```
+
+If cleanup_dir is specified, files are deleted from that directory (by the cleanup.py script) until the usage is under 50% on the device where the directory resides or until there are no more files in the directory. If deleting a file causes a directory to become empty, the empty directory is also deleted.
 
 ## Running as a daemon
 
