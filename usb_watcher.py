@@ -26,7 +26,7 @@ def pen_detected():
     organize_cmd = '"%s" --thumb "%s" "%s"' % (organize, dump_dir, organized_dir)
     if args.cleanup_dir:
         cleanup = os.path.join(args.dumpscribe_dir[0], 'cleanup.py')
-        cleanup_cmd = '"%s" "%s"' % (cleanup, args.cleanup_dir[0])
+        cleanup_cmd = '"%s" "%s"' % (cleanup, args.cleanup_dir)
     else:
         cleanup_cmd = False
 
