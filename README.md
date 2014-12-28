@@ -64,7 +64,7 @@ Unfortunately it is not clear how the official livescribe software figures out w
 
 # usb_watcher.py
 
-The usb_watcher.py command waits for a smartpen to be connected to USB and then runs first dumpscribe, then unmuddle.py and optionally a user-supplied command at the end (e.g. to upload the resulting data to a server). It is meant to be run as a daemon.
+The usb_watcher.py command waits for a smartpen to be connected to USB and then runs first dumpscribe, then unmuddle.py and optionally a user-supplied command at the end (e.g. to upload the resulting data to a server). It is meant to be run as a daemon. 
 
 ## Usage
 
@@ -86,8 +86,11 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   -d                    Daemonize this process
+  -l                    Enable Beagle Bone Black LED control
   -c POST_COMMAND       Command to run after running unmuddle.py
 ```
+
+The -l argument only works on a Beagle Bone Black with the Adafruit Beagle Bone BPIO python library installed. If enabled, it will use led_control.py to indicate the current status using three LEDs as output. Modify led_control.py to change which GPIO pins to use and remember that the Beagle Bone Black GPIO pins cannot supply enough current to drive LEDs directly. You'll need to use transistors. 
 
 If cleanup_dir is specified, files are deleted from that directory (by the cleanup.py script) until the usage is under 50% on the device where the directory resides or until there are no more files in the directory. If deleting a file causes a directory to become empty, the empty directory is also deleted.
 

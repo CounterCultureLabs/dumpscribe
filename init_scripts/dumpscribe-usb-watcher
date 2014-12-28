@@ -25,6 +25,9 @@ USER_COMMAND="rsync -HPSavx /mnt/sd_card/unmuddled/* dumpscribe@realvegancheese.
 # The application startup file path
 APPLICATION_PATH="/opt/dumpscribe/usb_watcher.py"
 
+# Extra arguments
+EXTRA_ARGS="" # change this to "-l" to enable LED control on Beagle Bone Black
+
 # Process ID file paths.
 PIDFILE="/var/run/dumpscribe_usb_watcher.pid"
 
@@ -41,7 +44,7 @@ do_start () {
         --make-pidfile \
         --startas $APPLICATION_PATH \
         -- \
-        $APPLICATION_WORKDIR $DUMPSCRIBE_OUTPUT_DIR $UNMUDDLE_OUTPUT_DIR -c "${USER_COMMAND}"
+        $EXTRA_ARGS $APPLICATION_WORKDIR $DUMPSCRIBE_OUTPUT_DIR $UNMUDDLE_OUTPUT_DIR -c "${USER_COMMAND}"
 
     log_end_msg $?
 }
