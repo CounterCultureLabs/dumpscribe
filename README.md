@@ -1,8 +1,13 @@
 
 Download all written notes and recorded audio from a LiveScribe Pulse or Echo pen. Convert the proprietary formats to open formats (pdf and ogg vorbis). Make the notes available online through a web app.
 
-This program has four parts:
- 
+This program has four parts: 
+
+* dumpscribe: Downloads data from pen
+* unmuddle: Converts data to open formats
+* usb_watcher: Runs dumpscribe and unmuddle when smartpen connects
+* dumpscribe-web: A web app for browsing the converted data
+
 # dumpscribe
 
 The dumpscribe command downloads and extracts all relevant info from the smartpen in the raw format as it exists on the pen. The audio is in aac format. The written notes are in a proprietary format called stf and the meta-data is in a combination of XML and undocumented binary files.
@@ -90,7 +95,7 @@ optional arguments:
   -c POST_COMMAND       Command to run after running unmuddle.py
 ```
 
-The -l argument only works on a Beagle Bone Black with the Adafruit Beagle Bone BPIO python library installed. If enabled, it will use led_control.py to indicate the current status using three LEDs as output. Modify led_control.py to change which GPIO pins to use and remember that the Beagle Bone Black GPIO pins cannot supply enough current to drive LEDs directly. You'll need to use transistors. 
+The -l argument only works on a Beagle Bone Black with the Adafruit Beagle Bone BPIO python library installed. If enabled, it will use led_control.py to indicate the current status using three LEDs as output. Modify led_control.py to change which GPIO pins to use and remember that the Beagle Bone Black GPIO pins cannot supply enough current to drive LEDs directly so you'll need to use transistors. In my setup led1 is green, led2 is purple and led3 is green.
 
 If cleanup_dir is specified, files are deleted from that directory (by the cleanup.py script) until the usage is under 50% on the device where the directory resides or until there are no more files in the directory. If deleting a file causes a directory to become empty, the empty directory is also deleted.
 
@@ -292,9 +297,23 @@ sudo /etc/init.d/apache2 restart
 
 Make sure the dumpscribe web app is running, open the url http://myhostname.org/labnotes in a browser to verify that everything is working.
 
+# LED output
+
+During boot only LED1 (green) is on. When boot has completed, all LEDs should be off.
+
+When the pen is docked, the following process occurs:
+
+LED1 (green) is blinking while the data is downloading from the pen. When data download is complete, LED1 (green) stays on. LED2 (purple) then starts blinking as data is the data is converted to open formats. When conversion is complete, LED2 (purple) stays on. When the user command is running (data is uploading) LED3 (red) is blinking. When the user command completes (upload completed) LED3 (red) stays on for one second, followed by all LEDs turning off.
+
+## Troubleshooting
+
+* If only LED1 (green) is on, then usb_watcher crashed or never started
+* If LED1 (green) is blinking for a long time then downloading from the pen failed
+* If LED1 (green) is on and LED2 (purple) is blinking for a long time, then converting to open formats failed.
+* If LED1 (green) and LED2 (purple) are on and LED3 (red) is blinking for a long time, then running the user-specified command failed (the user-specified command is likely uploading the files to your server).
+
 # TODO
 
-* Add stuff from led_control_remote.py to usb_watcher
 * Remove my ssh key from BBB and make BBB autogen new key in /root/.ssh/id_rsa* on first boot
 * Get rid of dumpscribe memory leaks
 ** It looks like the obex downloads allocates memory that is only freed when the obex cleanup function is called (which disconnects).

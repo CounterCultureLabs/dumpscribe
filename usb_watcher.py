@@ -22,12 +22,14 @@ led_modes = {
     'downloading': 'd',
     'converting': 'c',
     'uploading': 'u',
-    'done': 'o'
+    'done': 'o',
+    'blank': 'b'
 }
 
 led_process = None # the sub-process controlling the LEDs
 
 def led_mode(mode):
+    global led_process
     if not led_process:
         return
     try:
@@ -38,7 +40,10 @@ def led_mode(mode):
     txt = led_process.stdout.readline()
 
 def led_process_start():
-    led_process = subprocess.Popen(['./led_control.py'], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    global led_process
+    print "Starting LED process"
+    led_cmd = os.path.join(args.dumpscribe_dir[0], 'led_control.py')
+    led_process = subprocess.Popen([led_cmd], shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
 def led_process_stop():
     led_process.terminate()
@@ -87,7 +92,10 @@ def pen_detected():
             sys.stderr.write("User-supplied command failed.\n")
             return
 
-    led_mode('done')    
+    led_mode('done')
+    time.sleep(1)
+    led_mode('blank')
+
     print "All scripts completed successfully!"
 
 def callback(client, action, device, user_data):

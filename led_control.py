@@ -10,7 +10,8 @@ modes = {
     'd': 'downloading',
     'c': 'converting',
     'u': 'uploading',
-    'o': 'done'
+    'o': 'done',
+    'b': 'blank'
 }
 
 led1 = "P8_7"
@@ -52,6 +53,11 @@ while True:
 
     if mode == 'docked':
         high(led1)
+        low(led2)
+        low(led3)
+
+    elif mode == 'blank':
+        low(led1)
         low(led2)
         low(led3)
                 
