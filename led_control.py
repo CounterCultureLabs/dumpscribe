@@ -13,9 +13,9 @@ modes = {
     'o': 'done'
 }
 
-led1 = "P8_8"
-led2 = "P8_10"
-led3 = "P8_12"
+led1 = "P8_7"
+led2 = "P8_11"
+led3 = "P8_13"
 
 mode = 'ready'
 on = True
@@ -36,8 +36,9 @@ def read_input():
         mode = modes[c]
         sys.stdout.write("Switched to mode: %s\n" % (mode))
         sys.stdout.flush()
+	return mode
     except:
-        return
+        return 'ready'
 
 low(led1)
 low(led2)
@@ -47,7 +48,7 @@ low(led3)
 
 while True:
     if select.select([sys.stdin,],[],[],0.0)[0]:
-        read_input()
+        mode = read_input()
 
     if mode == 'docked':
         high(led1)
@@ -88,7 +89,7 @@ while True:
         high(led1)
         high(led2)
         high(led3)
-    
+
     time.sleep(0.5)
     if on:
         on = False
