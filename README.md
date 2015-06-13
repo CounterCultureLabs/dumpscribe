@@ -200,10 +200,10 @@ cd /usr/bin
 sudo ln -s nodejs node
 ```
 
-Install "forever" (a node.js app that automatically auto-starts your process when it crashes):
+Install "psy" (a node.js app that automatically auto-starts your process when it crashes):
 
 ```
-sudo npm -g install forever
+sudo npm -g install psy
 ```
 
 Add a user that will be running dumpscribe (just hit enter when asked questions):
@@ -218,45 +218,30 @@ Make the dumpscribe dir owned by the dumpscribe user:
 sudo chown -R dumpscribe.dumpscribe /opt/dumpscribe
 ```
 
-Now copy the web app's upstart script:
+Now copy the web app's init script:
 
 ```
-sudo cp init_script/dumpscribe-web.conf /etc/init
+sudo cp init_script/dumpscribe-web /etc/init.d
 ```
 
-Then, edit /etc/init/dumpscribe-web.conf setting the following lines to the correct values for your system:
-
-```
-env APPLICATION_WORKDIR="/opt/dumpscribe/web" # where the web app is located
-env UNMUDDLE_OUTPUT_DIR="/opt/dumpscribe/unmuddled" # where the output from unmuddle.py is located
-env PIDFILE="/opt/dumpscribe/dumpscribe.pid" # where to keep the pid file 
-env LOG="/opt/dumpscribe/dumpscribe.log" # where to write the log
-```
+Then, edit /etc/init.d/dumpscribe-web to set the correct user and paths for your system.
 
 Start the dumpscribe web app with:
 
 ```
-sudo start dumpscribe-web
+sudo /etc/init.d/dumpscribe-web start
 ```
 
 Check if it's really working by visiting the web app in the browser at http://your-server.org:3000/ or seeing if the dumpscribe process is runnning:
 
 ```
-ps aux|grep index.js|grep -v grep
+/etc/init.d/dumpscribe-web status
 ```
 
-If the upstart script isn't working, uncomment the lines:
+To make the process auto-start on boot do:
 
 ```
-# exec 2>>/tmp/dumpscribe.fail.log
-# set -x
-```
-
-Then to see what's going wrong do:
-
-```
-sudo start dumpscribe-web
-less /tmp/dumpscribe.fail.log
+sudo update-rc.d dumpscribe-web defaults
 ```
 
 ## Using an apache reverse proxy
@@ -343,4 +328,4 @@ The code used in dumpscribe and unmuddle.py has had multiple contributors. Not a
 * Copyright 2013 Yonathan Randolph (yonathan@gmail.com) 
 * Copyright 2014 Robert Jordens (https://github.com/jordens)
 * Copyright 2014 Ali Neishabouri (ali@neishabouri.net)
-* Copyright 2014 Marc Juul (scribedump@juul.io)
+* Copyright 2014-2015 Marc Juul (scribedump@juul.io)

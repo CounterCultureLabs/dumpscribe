@@ -299,6 +299,10 @@ app.post('/name_notebook', function(req, res){
     res.send("not implemented");
 });
 
+app.get('*', function(req, res){
+  res.send("404 - could not find " + req.url, 404);
+});
+
 console.log("Listening on http://localhost:" + port + "/")
 
 app.listen(port);
