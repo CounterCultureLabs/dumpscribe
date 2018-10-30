@@ -20,8 +20,8 @@
 #define MAX_PATH_LENGTH (65536)
 
 #define LS_VENDOR_ID 0x1cfb //LiveScribe Vendor ID
-inline int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } // LiveScribe Pulse(TM) Smartpen
-inline int is_ls_echo(unsigned int c) { return (c == 0x1030 || c == 0x1032); } // LiveScribe Echo(TM) Smartpen
+int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } // LiveScribe Pulse(TM) Smartpen
+int is_ls_echo(unsigned int c) { return (c == 0x1030 || c == 0x1032); } // LiveScribe Echo(TM) Smartpen
 
 struct obex_state {
     obex_t *handle;
@@ -133,7 +133,7 @@ void obex_event(obex_t* hdl, obex_object_t* obj, int mode, int event, int obex_c
                 obex_requestdone(state, hdl, obj, obex_cmd, obex_rsp);
                 break;
             default:
-              fprintf(stderr, "Unrecognized OBEX event encountered.\n");
+              fprintf(stderr, "Unrecognized OBEX event encountered. %d\n", event);
               obex_requestdone(state, hdl, obj, obex_cmd, obex_rsp);
               return;
         }
@@ -153,7 +153,7 @@ struct libusb_device_handle *find_smartpen() {
       fprintf(stderr, "Failed to initialize libusb.\n");
       return NULL;
     }
-    libusb_set_debug(ctx, 3); // set verbosity level to 3, as suggested in the documentation
+    libusb_set_option(ctx, LIBUSB_OPTION_LOG_LEVEL, 3); // set verbosity level to 3, as suggested in the documentation
     debug("getting device list...\n");
     cnt = libusb_get_device_list(ctx, &devs); //get the list of devices
     if(cnt >= 0) {
@@ -270,9 +270,10 @@ obex_t *smartpen_connect(short vendor, short product) {
       return NULL;
     }
     
-    num = OBEX_FindInterfaces(handle, &obex_intf);
+    num = OBEX_EnumerateInterfaces(handle);
     for (i=0; i<num; i++) {
-      if (!strcmp(obex_intf[i].usb.manufacturer, "Livescribe")) {
+      obex_intf = OBEX_GetInterfaceByIndex(handle, i);
+      if (!strcmp(obex_intf->usb.manufacturer, "Livescribe")) {
         break;
       }
     }
@@ -292,7 +293,7 @@ obex_t *smartpen_connect(short vendor, short product) {
     
     swizzle_usb(vendor, product);
     
-    rc = OBEX_InterfaceConnect(handle, &obex_intf[i]);
+    rc = OBEX_InterfaceConnect(handle, obex_intf);
     if (rc < 0) {
       fprintf(stderr, "Failed to talk to smartpen. Is it already in use by another app?\n");
       handle = NULL;
@@ -504,7 +505,7 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile, const ch
 
 
 // delete audio for specific notebook from pen
-void delete_notebook_audio(obex_t* handle, char* doc_id, uint32_t* len) {
+void delete_notebook_audio(obex_t* handle, const char* doc_id, uint32_t* len) {
   char name[256];
         
   snprintf(name, sizeof(name), "lspcommand?name=Paper Replay&command=retire?docId=%s?copy=0?deleteSession=true", doc_id);
@@ -523,11 +524,11 @@ int get_audio(obex_t *handle, long long int start_time, const char* outfile, con
   return get_archive(handle, name, outfile, outdir);
 }
 
-void delete_notebook_pages(obex_t* handle, char* doc_id, uint32_t* len) {
+void delete_notebook_pages(obex_t* handle, const char* doc_id, uint32_t* len) {
   char name[256];
 
   snprintf(name, sizeof(name), "lspcommand?name=%s&command=retire", doc_id);
-  return get_named_object(handle, name, len);
+  get_named_object(handle, name, len);
 }
 
 int get_notebook_pages(obex_t *handle, const char* object_name, long long int start_time, const char* outfile, const char* outdir, int delete_after_get) {
@@ -578,7 +579,7 @@ int64_t get_systemtime() {
 long long int get_pentime(obex_t* handle) {
   long long int pentime = -1;
   uint32_t len;
-  char* peninfo;
+  const char* peninfo;
   xmlDocPtr doc;
   xmlXPathContextPtr xpathCtx; 
   xmlXPathObjectPtr xpathObj; 
@@ -659,7 +660,7 @@ int64_t get_time_offset(obex_t* handle) {
 
   systime = get_systemtime(handle);
   if(systime < 0) {
-    printf("failed to get system time: %lld\n", systime);
+    printf("failed to get system time: %ld\n", systime);
     return -1;
   }
 
@@ -679,7 +680,7 @@ int write_time_offset(obex_t* handle, const char* outdir) {
     return 1;
   }
 
-  debug("Got time offset: %lld\n", offset);
+  debug("Got time offset: %ld\n", offset);
 
   snprintf(filepath, MAX_PATH_LENGTH, "%s/time_offset", outdir);
   
@@ -689,7 +690,7 @@ int write_time_offset(obex_t* handle, const char* outdir) {
     return 1;
   }
 
-  written = fprintf(f, "%lld", offset);
+  written = fprintf(f, "%ld", offset);
   if(written <= 0) { 
     fprintf(stderr, "Failed to write time_offset.\n");
     return 1;
@@ -793,7 +794,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
     }
     debug("found notebook guid %s now retrievieving notebook pages\n", val);
 
-    get_notebook_pages(handle, BAD_CAST val, start_time, "/tmp/dumpscribe_pages.zip", outdir, delete_after_get);
+    get_notebook_pages(handle, (const char *) val, start_time, "/tmp/dumpscribe_pages.zip", outdir, delete_after_get);
 
     xmlFree(val);
   }
