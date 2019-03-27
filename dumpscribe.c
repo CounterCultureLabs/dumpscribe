@@ -20,8 +20,8 @@
 #define MAX_PATH_LENGTH (65536)
 
 #define LS_VENDOR_ID 0x1cfb //LiveScribe Vendor ID
-inline int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } // LiveScribe Pulse(TM) Smartpen
-inline int is_ls_echo(unsigned int c) { return (c == 0x1030 || c == 0x1032); } // LiveScribe Echo(TM) Smartpen
+int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } // LiveScribe Pulse(TM) Smartpen
+int is_ls_echo(unsigned int c) { return (c == 0x1030 || c == 0x1032); } // LiveScribe Echo(TM) Smartpen
 
 struct obex_state {
     obex_t *handle;
@@ -131,6 +131,17 @@ void obex_event(obex_t* hdl, obex_object_t* obj, int mode, int event, int obex_c
         switch (event) {
             case OBEX_EV_REQDONE:
                 obex_requestdone(state, hdl, obj, obex_cmd, obex_rsp);
+                break;
+            case OBEX_EV_CONTINUE:
+                hd.bq4 = state->connid;
+                const int size = 4;
+                const unsigned int flags = 0;
+                const int rc = OBEX_ObjectAddHeader(hdl, obj, OBEX_HDR_CONNECTION, hd, size, flags);
+                if (rc < 0) {
+                    fprintf(stderr, "OBEX adding header failed\n");
+                    return;
+                }
+
                 break;
             default:
               fprintf(stderr, "Unrecognized OBEX event encountered.\n");
@@ -270,9 +281,10 @@ obex_t *smartpen_connect(short vendor, short product) {
       return NULL;
     }
     
-    num = OBEX_FindInterfaces(handle, &obex_intf);
+    num = OBEX_EnumerateInterfaces(handle);
     for (i=0; i<num; i++) {
-      if (!strcmp(obex_intf[i].usb.manufacturer, "Livescribe")) {
+      obex_intf = OBEX_GetInterfaceByIndex(handle, i);
+      if (!strcmp(obex_intf->usb.manufacturer, "Livescribe")) {
         break;
       }
     }
@@ -292,7 +304,7 @@ obex_t *smartpen_connect(short vendor, short product) {
     
     swizzle_usb(vendor, product);
     
-    rc = OBEX_InterfaceConnect(handle, &obex_intf[i]);
+    rc = OBEX_InterfaceConnect(handle, obex_intf);
     if (rc < 0) {
       fprintf(stderr, "Failed to talk to smartpen. Is it already in use by another app?\n");
       handle = NULL;
