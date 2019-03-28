@@ -20,8 +20,8 @@
 #define MAX_PATH_LENGTH (65536)
 
 #define LS_VENDOR_ID 0x1cfb //LiveScribe Vendor ID
-inline int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } // LiveScribe Pulse(TM) Smartpen
-inline int is_ls_echo(unsigned int c) { return (c == 0x1030 || c == 0x1032); } // LiveScribe Echo(TM) Smartpen
+int is_ls_pulse(unsigned int c) { return (c == 0x1020 || c == 0x1010); } // LiveScribe Pulse(TM) Smartpen
+int is_ls_echo(unsigned int c) { return (c == 0x1030 || c == 0x1032); } // LiveScribe Echo(TM) Smartpen
 
 struct obex_state {
     obex_t *handle;
@@ -30,6 +30,7 @@ struct obex_state {
     uint32_t body_len;
     int got_connid;
     int connid;
+    int continue_state;
 };
 
 int debug_mode = 0;
@@ -86,13 +87,11 @@ void obex_requestdone(struct obex_state* state, obex_t* hdl,
         case OBEX_CMD_GET:
             while (OBEX_ObjectGetNextHeader(hdl, obj, &header_id,
                                             &hdata, &hlen)) {
-                if (header_id == OBEX_HDR_BODY ||
-                    header_id == OBEX_HDR_BODY_END) {
-                    if (state->body)
-                        free(state->body);
-                    state->body = (char*)malloc(hlen);
-                    state->body_len = hlen;
-                    memcpy(state->body, hdata.bs, hlen);
+                if ((header_id == OBEX_HDR_BODY ||
+                    header_id == OBEX_HDR_BODY_END) && hlen > 0) {
+                    state->body = (char*)realloc(state->body, state->body_len + hlen);
+                    memcpy(state->body + state->body_len, hdata.bs, hlen);
+                    state->body_len += hlen;
                     break;
                 }
             }
@@ -118,6 +117,20 @@ void obex_event(obex_t* hdl, obex_object_t* obj, int mode, int event, int obex_c
           obex_requestdone(state, hdl, obj, obex_cmd, obex_rsp);
           return;
         }
+    } else if (event == OBEX_EV_STREAMAVAIL) {
+        // get the temporary buffer
+        const uint8_t *buf;
+        int size = OBEX_ObjectReadStream(hdl, obj, &buf);
+        // resize body to fit new data
+        state->body = (char*)realloc(state->body, state->body_len + size);
+        memcpy(state->body + state->body_len, buf, size);
+        state->body_len += size;
+        return;
+    } else if (state->continue_state > 0 &&
+               (event == OBEX_EV_ABORT || event == OBEX_EV_LINKERR)) {
+        // currently in the middle of canceling a request
+        state->continue_state++;
+        return;
     } else if (obex_rsp != OBEX_RSP_SUCCESS && obex_rsp != OBEX_RSP_CONTINUE) {
       if(obex_rsp == OBEX_RSP_NOT_FOUND) {
         fprintf(stderr, "OBEX object not found.\n");
@@ -131,6 +144,13 @@ void obex_event(obex_t* hdl, obex_object_t* obj, int mode, int event, int obex_c
         switch (event) {
             case OBEX_EV_REQDONE:
                 obex_requestdone(state, hdl, obj, obex_cmd, obex_rsp);
+                break;
+            case OBEX_EV_CONTINUE:
+                // cancel current request without sending an ABORT message to
+                // the pen, so we can send our own response that includes the
+                // connection ID
+                state->continue_state = 1;
+                OBEX_CancelRequest(hdl, 0);
                 break;
             default:
               fprintf(stderr, "Unrecognized OBEX event encountered.\n");
@@ -194,6 +214,10 @@ const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
     glong num;
 
     state = (struct obex_state*) OBEX_GetUserData(handle);
+    // initialize body
+    state->body = NULL;
+    state->body_len = 0;
+
     OBEX_SetTransportMTU(handle, OBEX_MAXIMUM_MTU, OBEX_MAXIMUM_MTU);
     obj = OBEX_ObjectNew(handle, OBEX_CMD_GET);
     size = 4;
@@ -220,11 +244,28 @@ const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
         fprintf(stderr, "An error occured while OBEX retrieving an object. Returning null value.\n");
         return NULL;
     }
+    // setup body streaming
+    OBEX_ObjectReadStream(handle, obj, NULL);
 
     req_done = state->req_done;
     
     while (state->req_done == req_done) {
         OBEX_HandleInput(handle, 100);
+        if (state->continue_state == 3) {
+            // make a response to a CONTINUE with a connection ID header
+            obj = OBEX_ObjectNew(handle, OBEX_CMD_GET);
+            size = 4;
+            hd.bq4 = state->connid;
+            OBEX_ObjectAddHeader(handle, obj, OBEX_HDR_CONNECTION, hd, size, OBEX_FL_FIT_ONE_PACKET);
+            state->continue_state = 0;
+            if (OBEX_Request(handle, obj) < 0) {
+                OBEX_ObjectDelete(handle, obj);
+                fprintf(stderr, "An error occured while OBEX retrieving an object. Returning null value.\n");
+                return NULL;
+            }
+            // enable streaming for new request
+            OBEX_ObjectReadStream(handle, obj, NULL);
+        }
     }
 
     // done handling input
@@ -270,9 +311,10 @@ obex_t *smartpen_connect(short vendor, short product) {
       return NULL;
     }
     
-    num = OBEX_FindInterfaces(handle, &obex_intf);
+    num = OBEX_EnumerateInterfaces(handle);
     for (i=0; i<num; i++) {
-      if (!strcmp(obex_intf[i].usb.manufacturer, "Livescribe")) {
+      obex_intf = OBEX_GetInterfaceByIndex(handle, i);
+      if (!strcmp(obex_intf->usb.manufacturer, "Livescribe")) {
         break;
       }
     }
@@ -292,7 +334,7 @@ obex_t *smartpen_connect(short vendor, short product) {
     
     swizzle_usb(vendor, product);
     
-    rc = OBEX_InterfaceConnect(handle, &obex_intf[i]);
+    rc = OBEX_InterfaceConnect(handle, obex_intf);
     if (rc < 0) {
       fprintf(stderr, "Failed to talk to smartpen. Is it already in use by another app?\n");
       handle = NULL;
