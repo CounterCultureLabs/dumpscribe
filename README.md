@@ -95,7 +95,7 @@ optional arguments:
   -c POST_COMMAND       Command to run after running unmuddle.py
 ```
 
-The -l argument only works on a Beagle Bone Black with the Adafruit Beagle Bone BPIO python library installed. If enabled, it will use led_control.py to indicate the current status using three LEDs as output. Modify led_control.py to change which GPIO pins to use and remember that the Beagle Bone Black GPIO pins cannot supply enough current to drive LEDs directly so you'll need to use transistors. In my setup led1 is green, led2 is purple and led3 is green.
+The -l argument only works on a Beagle Bone Black with the Adafruit Beagle Bone BPIO python library installed. If enabled, it will use led_control.py to indicate the current status using three LEDs as output. Modify led_control.py to change which GPIO pins to use and remember that the Beagle Bone Black GPIO pins cannot supply enough current to drive LEDs directly so you'll need to use transistors. In my setup led1 is green, led2 is purple and led3 is red.
 
 If cleanup_dir is specified, files are deleted from that directory (by the cleanup.py script) until the usage is under 50% on the device where the directory resides or until there are no more files in the directory. If deleting a file causes a directory to become empty, the empty directory is also deleted.
 
@@ -301,8 +301,8 @@ LED1 (green) is blinking while the data is downloading from the pen. When data d
 
 * Remove my ssh key from BBB and make BBB autogen new key in /root/.ssh/id_rsa* on first boot
 * Get rid of dumpscribe memory leaks
-** It looks like the obex downloads allocates memory that is only freed when the obex cleanup function is called (which disconnects).
-** Use Valgrind to check for memory leaks: http://www.cprogramming.com/debugging/valgrind.html
+   * It looks like the obex downloads allocates memory that is only freed when the obex cleanup function is called (which disconnects).
+   * Use Valgrind to check for memory leaks: http://www.cprogramming.com/debugging/valgrind.html
 * Get rid of dumpscribe compile warnings related to xmlChar vs. char
 
 # License and Copyright
@@ -329,3 +329,4 @@ The code used in dumpscribe and unmuddle.py has had multiple contributors. Not a
 * Copyright 2014 Robert Jordens (https://github.com/jordens)
 * Copyright 2014 Ali Neishabouri (ali@neishabouri.net)
 * Copyright 2014-2015 Marc Juul (scribedump@juul.io)
+* Copyright 2019 Eric Johnson (yut23 on github)
