@@ -204,7 +204,7 @@ struct libusb_device_handle *find_smartpen() {
     return NULL;
 }
 
-const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
+char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
     debug("attempting to retrieve named object \"%s\"...\n", name);
     struct obex_state* state;
     int req_done;
@@ -276,8 +276,7 @@ const char* get_named_object(obex_t *handle, const char* name, uint32_t* len) {
         *len = 0;
     }
 
-    // TODO we never free this? Do we need an OBEX call or can we just call free?
-    // check openobex api: http://dev.zuckschwerdt.org/openobex/doxygen/html/obex_8h.html
+    // caller must free this
     return state->body;
 }
 
@@ -362,13 +361,14 @@ obex_t *smartpen_connect(short vendor, short product) {
       continue;
     }
         
-    const char* buf = get_named_object(handle, "ppdata?key=pp0000", &rc);
+    char* buf = get_named_object(handle, "ppdata?key=pp0000", &rc);
     if(!buf) {
       debug("Retry connection...\n");
       OBEX_Cleanup(handle);
       smartpen_reset(vendor, product);
       continue;
     }
+    free(buf);
     break;
   }
   return handle;
@@ -509,7 +509,7 @@ int extract(const char* filename, const char* outdir) {
 int get_archive(obex_t *handle, char* object_name, const char* outfile, const char* outdir) {
 	uint32_t len;
   uint32_t written;
-  const char* buf;
+  char* buf;
   int ret;
   FILE* out;
   
@@ -522,6 +522,7 @@ int get_archive(obex_t *handle, char* object_name, const char* outfile, const ch
 	buf = get_named_object(handle, object_name, &len);
 
   written = fwrite(buf, len, 1, out);
+  free(buf);
   if(!written) {
     fprintf(stderr, "Data could not be written to disk. Is your disk full?\n");
     return 1;
@@ -550,7 +551,7 @@ void delete_notebook_audio(obex_t* handle, char* doc_id, uint32_t* len) {
   char name[256];
         
   snprintf(name, sizeof(name), "lspcommand?name=Paper Replay&command=retire?docId=%s?copy=0?deleteSession=true", doc_id);
-  get_named_object(handle, name, len);
+  free(get_named_object(handle, name, len));
 }
 
 // download all audio from pen
@@ -569,7 +570,7 @@ void delete_notebook_pages(obex_t* handle, char* doc_id, uint32_t* len) {
   char name[256];
 
   snprintf(name, sizeof(name), "lspcommand?name=%s&command=retire", doc_id);
-  return get_named_object(handle, name, len);
+  free(get_named_object(handle, name, len));
 }
 
 int get_notebook_pages(obex_t *handle, const char* object_name, long long int start_time, const char* outfile, const char* outdir, int delete_after_get) {
@@ -592,8 +593,8 @@ int get_notebook_pages(obex_t *handle, const char* object_name, long long int st
 }
 
 // Get pen information xml
-const char* get_peninfo(obex_t* handle, uint32_t* len) {
-  const char* peninfo = get_named_object(handle, "peninfo", len);
+char* get_peninfo(obex_t* handle, uint32_t* len) {
+  char* peninfo = get_named_object(handle, "peninfo", len);
   return peninfo;
 }
 
@@ -636,6 +637,7 @@ long long int get_pentime(obex_t* handle) {
   xmlInitParser();
 
   doc = xmlParseMemory(peninfo, len);
+  free(peninfo);
   if(!doc) {
     fprintf(stderr, "Failed to parse list of written pages.\n");
     return -1;
@@ -744,7 +746,7 @@ int write_time_offset(obex_t* handle, const char* outdir) {
 
 
 // Get a list of written pages created since start_time
-const char* get_written_page_list(obex_t* handle, long long int start_time, uint32_t* len) {
+char* get_written_page_list(obex_t* handle, long long int start_time, uint32_t* len) {
     char name[256];
 
     snprintf(name, sizeof(name), "changelist?start_time=%lld", start_time);
@@ -770,7 +772,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
   // This is safe since we know exactly what we're casting.
   const xmlChar* xpathExpr = BAD_CAST "/xml/changelist/lsp";
 
-  const char* list = get_written_page_list(handle, start_time, &list_len);
+  char* list = get_written_page_list(handle, start_time, &list_len);
   if(!list) {
     fprintf(stderr, "Failed to retrieve the list of written pages.\n");
     return 1;
@@ -798,6 +800,7 @@ int get_all_written_pages(obex_t* handle, long long int start_time, const char* 
   xmlInitParser();
 
   doc = xmlParseMemory(list, list_len);
+  free(list);
   if(!doc) {
     fprintf(stderr, "Failed to parse list of written pages.\n");
     xmlCleanupParser();
